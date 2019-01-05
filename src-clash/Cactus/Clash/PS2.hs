@@ -36,7 +36,7 @@ data PS2State
     | Bit Word8 (Index 8)
     | Parity Word8
     | Stop (Maybe Word8)
-    deriving (Show, Eq)
+    deriving (Show, Eq, Generic, Undefined)
 
 decodePS2
     :: (HiddenClockReset dom gated synchronous)
@@ -66,6 +66,7 @@ data ScanState
     = Init
     | Extended
     | Code KeyEvent Bool
+    deriving (Generic, Undefined)
 
 -- TODO: rewrite this for clarity.
 -- All it does is it parses 0xE0 0xXX into an extended code, and

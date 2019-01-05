@@ -1,4 +1,4 @@
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving, DerivingStrategies #-}
 module Cactus.Clash.CPU where
 
 import Clash.Prelude hiding (lift)
@@ -9,7 +9,7 @@ import Control.Monad.Trans.Class
 import Data.Monoid
 
 newtype CPU i s o a = CPU{ unCPU :: RWS i (Endo o) s a }
-    deriving (Functor, Applicative, Monad, MonadState s)
+    deriving newtype (Functor, Applicative, Monad, MonadState s)
 
 tell :: (o -> o) -> CPU i s o ()
 tell = CPU . W.tell . Endo

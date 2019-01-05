@@ -28,7 +28,7 @@ data RXState = RXState
     , byte :: Word8
     , state :: MicroState
     }
-    deriving (Generic, NFData, Show)
+    deriving (Generic, NFData, Show, Undefined)
 
 data MicroState
     = RXIdle
@@ -36,7 +36,7 @@ data MicroState
     | RXBit (Index 8)
     | RXStop
     | RXCleanup
-    deriving (Generic, NFData, Show)
+    deriving (Generic, NFData, Show, Undefined)
 
 rx0 :: Word32 -> Bit -> State RXState (Maybe Word8)
 rx0 divider bit = do

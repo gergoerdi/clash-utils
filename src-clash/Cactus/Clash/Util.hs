@@ -26,7 +26,7 @@ import Data.Word
 import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
 
-mealyState :: (HiddenClockReset domain gated synchronous)
+mealyState :: (HiddenClockReset domain gated synchronous, Undefined s)
            => (i -> State s o) -> s -> (Signal domain i -> Signal domain o)
 mealyState f = mealy step
   where
@@ -103,7 +103,7 @@ shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> a
 shiftInLeft b bs = unpack . pack . fst $ shiftInAt0 (unpack . pack $ bs) (b :> Nil)
 
 debounce
-    :: (HiddenClockReset domain gated synchronous, KnownNat n, Eq a)
+    :: (HiddenClockReset domain gated synchronous, KnownNat n, Eq a, Undefined a)
     => SNat n -> a -> Signal domain a -> Signal domain a
 debounce n x0 = mealyState step (unsigned n 0, x0, x0)
   where
@@ -111,7 +111,7 @@ debounce n x0 = mealyState step (unsigned n 0, x0, x0)
         (counter, last, prev) <- get
         let stable = counter == maxBound
             changing = this /= prev
-            counter' = if changing then 0 else counter `boundedPlus` 1
+            counter' = if changing then 0 else counter `boundedAdd` 1
             last' = if counter' == maxBound then this else last
 
         put (counter', last', this)
@@ -128,7 +128,7 @@ extremum xs
   | otherwise = Nothing
 
 regShiftIn
-    :: (HiddenClockReset dom gated synchronous, KnownNat n)
+    :: (HiddenClockReset dom gated synchronous, KnownNat n, Undefined a)
     => Vec n a -> Signal dom (Maybe a) -> (Signal dom (Vec n a), Signal dom (Maybe a))
 regShiftIn = mealyB $ \xs x -> let out@(xs', _) = shiftIn x xs in (xs', out)
   where
