@@ -60,14 +60,11 @@ diff = mealy step False
 countTo
     :: (HiddenClockReset domain gated synchronous)
     => Word32 -> Signal domain Bool
-countTo n = mealyState step 0 (pure ())
+countTo n = finished
   where
-    step () = do
-        k <- get
-        let k' = k + 1
-            finished = k' == n
-        put $ if finished then 0 else k'
-        return finished
+    cnt = register 0 $ mux finished 0 cnt'
+    cnt' = cnt + 1
+    finished = cnt' .==. pure n
 
 muxRR
     :: forall domain gated synchronous n a. (HiddenClockReset domain gated synchronous, KnownNat n)
