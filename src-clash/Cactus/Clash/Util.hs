@@ -43,11 +43,10 @@ activeHigh :: (Functor f) => f Bool -> f Bit
 activeHigh = fmap boolToBit
 
 countWhen
-    :: (HiddenClockReset domain gated synchronous)
-    => Signal domain Bool -> Signal domain Word16
-countWhen = moore step id 0
-  where
-    step n b = if b then succ n else n
+    :: forall a domain gated synchronous.
+      (Undefined a, Num a, HiddenClockReset domain gated synchronous)
+    => Signal domain Bool -> Signal domain a
+countWhen s = fix $ regEn 0 s . (1 +)
 
 diff
     :: (HiddenClockReset domain gated synchronous)
