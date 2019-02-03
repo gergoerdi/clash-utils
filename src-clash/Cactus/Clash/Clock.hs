@@ -1,13 +1,21 @@
+{-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables #-}
+{-# LANGUAGE NumericUnderscores #-}
 module Cactus.Clash.Clock
-    ( clkPeriod
-    , clkRate
+    ( FromHz
+    , ClockDivider
+    , divider
     ) where
 
-import Clash.Prelude hiding (clkPeriod)
-import qualified Cactus.Clash.Explicit.Clock as E
+import Clash.Prelude
+import Cactus.Clash.Util
 
-clkPeriod :: (HiddenClock domain gated, domain ~ Dom s ps, KnownNat ps) => Integer
-clkPeriod = hideClock E.clkPeriod
+type FromHz rate = 1_000_000_000_000 `Div` rate
 
-clkRate :: (HiddenClock domain gated, domain ~ Dom s ps, KnownNat ps) => Integer
-clkRate = hideClock E.clkRate
+type family ClockDivider dom (n :: Nat) where
+    ClockDivider (Dom s ps) n = n `Div` ps
+
+divider
+    :: forall n proxy domain gated synchronous.
+       (KnownNat n, KnownNat (ClockDivider domain n), HiddenClockReset domain gated synchronous)
+    => proxy n -> Signal domain Bool
+divider _ = countTo (pure $ maxBound @(Index (ClockDivider domain n)))
