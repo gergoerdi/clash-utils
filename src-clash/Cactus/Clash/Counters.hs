@@ -42,12 +42,12 @@ class IsCounterPlus ns where
 instance IsCounterPlus '[] where
     type CounterSum '[] dom = dom ::: '[]
 
-    counterPlus' _ _ en tick = (NilP, tick)
+    counterPlus' _ _ en tick = (PNil, tick)
 
 instance (KnownNat n, IsCounterPlus ns) => IsCounterPlus (n:ns) where
     type CounterSum (n:ns) dom = Signal dom (Maybe (Index n)) : CounterSum ns dom
 
-    counterPlus' _ isFirst en tick = (this ::> that, end)
+    counterPlus' _ isFirst en tick = (this :-: that, end)
       where
         (this, next) = counter (Proxy @n) en (register isFirst tick)
         (that, end) = counterPlus' (Proxy @ns) False en next
@@ -72,12 +72,12 @@ class IsCounterProd (nss :: [[Nat]]) where
 instance IsCounterProd '[] where
     type CounterProd '[] dom = dom ::: '[]
 
-    counterMul' _ _ = NilP
+    counterMul' _ _ = PNil
 
 instance (IsCounterPlus ns, IsCounterProd nss) => IsCounterProd (ns : nss) where
     type CounterProd (ns : nss) dom = CounterSum ns dom : CounterProd nss dom
 
-    counterMul' _ prev = this ::> them
+    counterMul' _ prev = this :-: them
       where
         (this, endThis) = counterPlus' (Proxy @ns) True prev endThis
         them = counterMul' (Proxy @nss) (register True endThis)

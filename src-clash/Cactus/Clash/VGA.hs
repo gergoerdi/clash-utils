@@ -65,13 +65,13 @@ vgaDriver
     -> VGADriver dom w h
 vgaDriver timings@SVGATimings = VGADriver{..}
   where
-    horiz ::> vert ::> NilP = counterMul $ Proxy
+    horiz :-: vert :-: PNil = counterMul $ Proxy
         @'[ [w, preH, pulseH, postH]
           , [h, preV, pulseV, postV]
           ]
 
-    vgaX ::> _ ::> (toSync (Proxy @polH) -> vgaHSync) ::> _ = horiz
-    vgaY ::> _ ::> (toSync (Proxy @polV) -> vgaVSync) ::> _ = vert
+    vgaX :-: _ :-: (toSync (Proxy @polH) -> vgaHSync) :-: _ = horiz
+    vgaY :-: _ :-: (toSync (Proxy @polV) -> vgaVSync) :-: _ = vert
 
     vgaEndLine = isFalling False (isJust <$> vgaX)
     vgaEndFrame = isFalling False (isJust <$> vgaY)
