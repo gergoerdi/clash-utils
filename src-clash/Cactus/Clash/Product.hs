@@ -1,52 +1,63 @@
-{-# LANGUAGE DataKinds, PolyKinds #-}
+{-# LANGUAGE GADTs, StandaloneDeriving, DataKinds, PolyKinds #-}
 {-# LANGUAGE TypeFamilyDependencies, FlexibleInstances #-}
-{-# LANGUAGE DeriveGeneric, DeriveAnyClass, StandaloneDeriving #-}
 {-# LANGUAGE NoStarIsType #-}
 module Cactus.Clash.Product where
 
 import Clash.Prelude
-import GHC.Generics (Generic)
 import Control.DeepSeq
 import Data.Kind
 
-class IsProduct (ts :: [Type]) where
-    data Product ts
-    type UnbundledP (dom :: Domain) ts = (res :: [Type]) | res -> dom ts
+data Product (ts :: [Type]) where
+    PNil :: Product '[]
+    (:-:) :: a -> Product ts -> Product (a : ts)
+infixr 5 :-:
 
-    bundleP :: Product (UnbundledP dom ts) -> Signal dom (Product ts)
-    unbundleP :: Signal dom (Product ts) -> Product (UnbundledP dom ts)
+instance Show (Product '[]) where show PNil = "PNil"
+deriving instance (Show t, Show (Product ts)) => Show (Product (t : ts))
 
-instance IsProduct '[] where
-    data Product '[] = NilP
-        deriving (Generic, NFData, Show, Undefined)
-    type UnbundledP dom '[] = dom ::: '[]
+instance Eq (Product '[]) where _ == _ = True
+deriving instance (Eq t, Eq (Product ts)) => Eq (Product (t : ts))
 
-    bundleP NilP = pure NilP
-    unbundleP _ = NilP
+instance Ord (Product '[]) where compare _ _ = EQ
+deriving instance (Ord t, Ord (Product ts)) => Ord (Product (t : ts))
 
-infixr 5 ::>
+instance NFData (Product '[]) where
+    rnf PNil = ()
 
-instance (IsProduct ts) => IsProduct (t : ts) where
-    data Product (t : ts) = t ::> (Product ts)
-
-    type UnbundledP dom (t:ts) = Signal dom t : UnbundledP dom ts
-
-    bundleP (x ::> xs) = (::>) <$> x <*> bundleP xs
-    unbundleP s = (headP <$> s) ::> (unbundleP (tailP <$> s))
+instance (NFData t, NFData (Product ts)) => NFData (Product (t:ts)) where
+    rnf (x :-: xs) = rnf x `seq` rnf xs
 
 headP :: Product (t : ts) -> t
-headP (x ::> xs) = x
+headP (x :-: xs) = x
 
 tailP :: Product (t : ts) -> Product ts
-tailP (x ::> xs) = xs
+tailP (x :-: xs) = xs
 
-deriving instance (Show t, Show (Product ts)) => Show (Product (t : ts))
-deriving instance (Generic t, Generic (Product ts)) => Generic (Product (t : ts))
-deriving instance (Generic t, Generic (Product ts), NFData t, NFData (Product ts)) => NFData (Product (t : ts))
-deriving instance (Generic t, Generic (Product ts), Undefined t, Undefined (Product ts)) => Undefined (Product (t : ts))
+data SLength :: [k] -> Type where
+    SLenNil :: SLength '[]
+    SLenCons :: SLength xs -> SLength (x : xs)
 
-instance (IsProduct ts) => Bundle (Product ts) where
-    type Unbundled dom (Product ts) = Product (UnbundledP dom ts)
+class KnownLength (xs :: [k]) where
+    knownLength :: SLength xs
 
-    bundle = bundleP
-    unbundle = unbundleP
+instance KnownLength '[] where knownLength = SLenNil
+instance (KnownLength xs) => KnownLength (x : xs) where knownLength = SLenCons knownLength
+
+type family ToSignals (dom :: Domain) (ts :: [Type]) = (r :: [Type]) | r -> ts dom where
+    ToSignals dom '[] = dom ::: '[]
+    ToSignals dom (t : ts) = Signal dom t : ToSignals dom ts
+
+instance (KnownLength ts) => Bundle (Product ts) where
+    type Unbundled dom (Product ts) = Product (ToSignals dom ts)
+
+    bundle = go knownLength
+      where
+        go :: forall dom us. SLength us -> Product (ToSignals dom us) -> Signal dom (Product us)
+        go SLenNil PNil = pure PNil
+        go (SLenCons n) (x :-: xs) = (:-:) <$> x <*> go n xs
+
+    unbundle = go knownLength
+      where
+        go :: forall dom us. SLength us -> Signal dom (Product us) -> Product (ToSignals dom us)
+        go SLenNil _ = PNil
+        go (SLenCons n) xs = (headP <$> xs) :-: (go n $ tailP <$> xs)
