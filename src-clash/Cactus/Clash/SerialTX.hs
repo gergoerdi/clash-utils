@@ -2,6 +2,7 @@
 {-# LANGUAGE RecordWildCards, TupleSections #-}
 module Cactus.Clash.SerialTX
     ( TXOut(..)
+    , txDyn
     , tx
     , fifo
     ) where
@@ -16,47 +17,50 @@ import Data.Word
 import Data.Int
 import Data.Bits
 import Data.Maybe
+import Data.Foldable (for_)
 
-data TXState = TXIdle
-             | TXStart
-             | TXBit (Index 8)
+data TXState n
+    = TXIdle
+    | TXStart (Unsigned n)
+    | TXBit (Unsigned n) (Index n)
+    deriving (Show, Eq, Generic, Undefined)
 
 data TXOut dom = TXOut{ txReady :: Signal dom Bool, txOut :: Signal dom Bit }
 
 rotateRightS' :: forall a d. (BitPack a, KnownNat (BitSize a)) => SNat d -> a -> a
 rotateRightS' d x = unpack . pack $ rotateRightS (unpack . pack $ x :: Vec (BitSize a) Bit) d
 
-tx0 :: Word32 -> Maybe Word8 -> State (Word32, Maybe (Word8, TXState)) (Bool, Bit)
-tx0 divider v = do
-    (cnt, s) <- get
+tx0 :: (KnownNat n) => Maybe (Unsigned n) -> State (TXState n) (Bool, Bit)
+tx0 input = do
+    s <- get
     case s of
-        Nothing -> do
-            traverse (\v -> put (divider, Just (v, TXIdle))) v
+        TXIdle -> do
+            for_ input $ put . TXStart
             return (True, high)
-        Just (v, s') -> (False,) <$> case s' of
-            TXIdle -> do
-                nextState $ Just (v, TXStart)
-                return high
-            TXStart -> do
-                nextState $ Just (v, TXBit 0)
-                return low
-            TXBit i -> do
-                let v' = rotateRightS' d1 v
-                nextState $ ((v',) . TXBit) <$> succIdx i
-                return $ lsb . pack $ v
+        TXStart x -> do
+            put $ TXBit x 0
+            return (False, low)
+        TXBit x i -> do
+            let x' = rotateRightS' d1 x
+            put $ maybe TXIdle (TXBit x') $ succIdx i
+            return (False, lsb . pack $ x)
+
+txDyn
+    :: (KnownNat n, HiddenClockReset domain gated synchronous)
+    => Signal domain Bool
+    -> Signal domain (Maybe (Unsigned n))
+    -> TXOut domain
+txDyn tick inp = TXOut{..}
   where
-    nextState s = do
-        (cnt, s0) <- get
-        put $ if cnt == 0 then (divider, s) else (cnt - 1, s0)
+    (txReady, txOut) = unbundle $ mealyStateSlow tick tx0 TXIdle inp
 
 tx
-    :: (HiddenClockReset domain gated synchronous, domain ~ Dom s ps, KnownNat ps)
-    => Word32
-    -> Signal domain (Maybe Word8)
+    :: (KnownNat n, HiddenClockReset domain gated synchronous)
+    => (KnownNat rate, KnownNat (ClockDivider domain rate))
+    => proxy rate
+    -> Signal domain (Maybe (Unsigned n))
     -> TXOut domain
-tx serialRate inp = TXOut{..}
-  where
-    (txReady, txOut) = unbundle $ mealyState (tx0 $ fromIntegral clkRate `div` serialRate) (0, Nothing) inp
+tx rate = txDyn (divider rate)
 
 fifo
     :: forall domain gated synchronous a. (HiddenClockReset domain gated synchronous)
