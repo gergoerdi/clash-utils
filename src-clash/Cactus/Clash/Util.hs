@@ -67,9 +67,10 @@ diff = mealy step False
 countTo
     :: (Undefined a, Eq a, Num a, HiddenClockReset domain gated synchronous)
     => Signal domain a -> Signal domain Bool
-countTo n = cnt .==. n
+countTo n = finished
   where
-    cnt = register 0 $ mux (cnt .==. n) 0 (cnt + 1)
+    cnt = register 0 $ mux finished 0 (cnt + 1)
+    finished = cnt .==. (n - 1)
 
 muxRR
     :: forall domain gated synchronous n a. (HiddenClockReset domain gated synchronous, KnownNat n)

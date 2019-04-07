@@ -8,6 +8,7 @@ import Clash.Prelude
 import Cactus.Clash.Util
 import Cactus.Clash.Clock
 import Cactus.Clash.Product
+import Cactus.Clash.Sum
 import Cactus.Clash.Counters
 import Data.Proxy
 import Data.Maybe
@@ -65,13 +66,19 @@ vgaDriver
     -> VGADriver dom w h
 vgaDriver timings@SVGATimings = VGADriver{..}
   where
-    horiz :-: vert :-: PNil = counterMul $ Proxy
+    counters = Proxy
         @'[ [w, preH, pulseH, postH]
           , [h, preV, pulseV, postV]
           ]
+    horiz :-: vert :-: PNil = counterProdSum counters (pure True)
 
-    vgaX :-: _ :-: (toSync (Proxy @polH) -> vgaHSync) :-: _ = horiz
-    vgaY :-: _ :-: (toSync (Proxy @polV) -> vgaVSync) :-: _ = vert
+    unpackVGA :: Sum (Indices '[visible, pre, sync, post]) -> (Maybe (Index visible), Maybe (Index sync))
+    unpackVGA (Here x) = (Just x, Nothing)
+    unpackVGA (There (There (Here cnt))) = (Nothing, Just cnt)
+    unpackVGA _ = (Nothing, Nothing)
+
+    (vgaX, toSync (Proxy @polH) -> vgaHSync) = unbundle $ unpackVGA <$> horiz
+    (vgaY, toSync (Proxy @polV) -> vgaVSync) = unbundle $ unpackVGA <$> vert
 
     vgaEndLine = isFalling False (isJust <$> vgaX)
     vgaEndFrame = isFalling False (isJust <$> vgaY)

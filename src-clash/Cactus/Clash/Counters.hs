@@ -1,9 +1,13 @@
-{-# LANGUAGE DataKinds, PolyKinds, NoStarIsType #-}
-module Cactus.Clash.Counters (counterPlus', counterMul) where
+{-# LANGUAGE GADTs, DataKinds, PolyKinds, NoStarIsType #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE TypeFamilyDependencies #-}
+module Cactus.Clash.Counters (Indices, counterProdSum) where
 
 import Clash.Prelude
+import Clash.Prelude.Moore
 import Cactus.Clash.Util
 import Cactus.Clash.Product
+import Cactus.Clash.Sum
 import Data.Word
 import Data.Proxy
 import Data.Kind
@@ -15,79 +19,65 @@ import Control.Applicative
 import Data.Singletons -- ((~>))
 import Data.Singletons.Prelude.List (Map)
 
-counter
-    :: (HiddenClockReset dom gated synchronous, KnownNat n)
-    => proxy n
-    -> Signal dom Bool
-    -> Signal dom Bool
-    -> (Signal dom (Maybe (Index n)), Signal dom Bool)
-counter _ en tick = unbundle $ mealyState step Nothing $ bundle (en, tick)
+data SNats :: [Nat] -> Type where
+    SNatsNil :: SNats '[]
+    SNatsCons :: (KnownNat n) => SNats ns -> SNats (n : ns)
+
+class KnownNats (ns :: [Nat]) where
+    type Indices ns = (res :: [Type]) | res -> ns
+    knownNats :: SNats ns
+
+instance KnownNats '[] where
+    type Indices '[] = '[]
+    knownNats = SNatsNil
+
+instance (KnownNat n, KnownNats ns) => KnownNats (n : ns) where
+    type Indices (n : ns) = Index n : Indices ns
+    knownNats = SNatsCons knownNats
+
+sumSucc :: (KnownNats ns) => Sum (Indices ns) -> Maybe (Sum (Indices ns))
+sumSucc = go knownNats
   where
-    step (en, tick) = do
-        when en $ modify $ \i ->
-            maybe (0 <$ guard tick) succIdx i
-        i' <- get
-        return (i', i' == Just maxBound)
+    go :: forall ks. SNats ks -> Sum (Indices ks) -> Maybe (Sum (Indices ks))
+    go SNatsNil _ = Nothing
+    go (SNatsCons k) (Here x) = case succIdx x of
+        Just x' -> Just $ Here x'
+        Nothing -> There <$> next k
+    go (SNatsCons k) (There y) = There <$> go k y
 
-class IsCounterPlus ns where
-    type CounterSum ns (dom :: Domain) :: [Type]
+    next :: forall ks. SNats ks -> Maybe (Sum (Indices ks))
+    next (SNatsCons _) = Just $ Here 0
+    next _ = Nothing
 
-    counterPlus'
-        :: (HiddenClockReset dom gated synchronous)
-        => proxy ns
-        -> Bool
-        -> Signal dom Bool
-        -> Signal dom Bool
-        -> (Product (CounterSum ns dom), Signal dom Bool)
-
-instance IsCounterPlus '[] where
-    type CounterSum '[] dom = dom ::: '[]
-
-    counterPlus' _ _ en tick = (PNil, tick)
-
-instance (KnownNat n, IsCounterPlus ns) => IsCounterPlus (n:ns) where
-    type CounterSum (n:ns) dom = Signal dom (Maybe (Index n)) : CounterSum ns dom
-
-    counterPlus' _ isFirst en tick = (this :-: that, end)
-      where
-        (this, next) = counter (Proxy @n) en (register isFirst tick)
-        (that, end) = counterPlus' (Proxy @ns) False en next
-
-counterPlus
-    :: (HiddenClockReset dom gated synchronous, IsCounterPlus ns)
-    => proxy ns
-    -> (Product (CounterSum ns dom), Signal dom Bool)
-counterPlus ns = (counters, end)
+sumMinBound :: (KnownNats (n : ns)) => proxy (n : ns) -> Sum (Indices (n : ns))
+sumMinBound ns = go knownNats
   where
-    (counters, end) = counterPlus' ns True (pure True) end
+    go :: forall k ks. SNats (k : ks) -> Sum (Indices (k : ks))
+    go (SNatsCons _) = Here 0
+
+data CounterSum_ :: [Nat] ~> Type
+type instance Apply CounterSum_ ns = Sum (Indices ns)
 
 class IsCounterProd (nss :: [[Nat]]) where
-    type CounterProd nss (dom :: Domain) :: [[Type]]
-
-    counterMul'
-        :: (HiddenClockReset dom gated synchronous)
-        => proxy nss
-        -> Signal dom Bool
-        -> Product (Map Product_ (CounterProd nss dom))
+    prodSucc :: proxy nss -> Product (Map CounterSum_ nss) -> Product (Map CounterSum_ nss)
+    prodMinBound :: proxy nss -> Product (Map CounterSum_ nss)
 
 instance IsCounterProd '[] where
-    type CounterProd '[] dom = dom ::: '[]
+    prodSucc _ PNil = PNil
+    prodMinBound _ = PNil
 
-    counterMul' _ _ = PNil
+instance (KnownNats (n:ns), IsCounterProd nss) => IsCounterProd ((n:ns) : nss) where
+    prodSucc _ (xs :-: xss) = case sumSucc xs of
+        Nothing -> sumMinBound (Proxy @(n:ns)) :-: prodSucc (Proxy @nss) xss
+        Just xs' -> xs' :-: xss
 
-instance (IsCounterPlus ns, IsCounterProd nss) => IsCounterProd (ns : nss) where
-    type CounterProd (ns : nss) dom = CounterSum ns dom : CounterProd nss dom
+    prodMinBound _ = sumMinBound (Proxy @(n:ns)) :-: prodMinBound (Proxy @nss)
 
-    counterMul' _ prev = this :-: them
-      where
-        (this, endThis) = counterPlus' (Proxy @ns) True prev endThis
-        them = counterMul' (Proxy @nss) (register True endThis)
-
-data Product_ :: [Type] ~> Type
-type instance Apply Product_ ts = Product ts
-
-counterMul
-    :: (HiddenClockReset dom gated synchronous, IsCounterProd nss)
-    => proxy nss
-    -> Product (Map Product_ (CounterProd nss dom))
-counterMul nss = counterMul' nss (pure True)
+counterProdSum
+  :: (HiddenClockReset dom gated synchronous, KnownLength (Map CounterSum_ nss), IsCounterProd nss)
+  => proxy nss
+  -> Signal dom Bool
+  -> Unbundled dom (Product (Map CounterSum_ nss))
+counterProdSum nss tick = unbundle r
+  where
+    r = regEn (prodMinBound nss) tick $ prodSucc nss <$> r

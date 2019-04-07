@@ -61,3 +61,10 @@ instance (KnownLength ts) => Bundle (Product ts) where
         go :: forall dom us. SLength us -> Signal dom (Product us) -> Product (ToSignals dom us)
         go SLenNil _ = PNil
         go (SLenCons n) xs = (headP <$> xs) :-: (go n $ tailP <$> xs)
+
+instance (KnownLength ts) => Undefined (Product (ts)) where
+    deepErrorX s = go knownLength
+      where
+        go :: forall dom us. SLength us -> Product us
+        go SLenNil = PNil
+        go (SLenCons n) = errorX s :-: go n
