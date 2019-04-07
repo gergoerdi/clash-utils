@@ -1,5 +1,6 @@
 module Cactus.Clash.Util
     ( mealyState
+    , mealyStateSlow
     , activeLowReset
     , activeLow
     , activeHigh
@@ -31,6 +32,17 @@ mealyState f = mealy step
   where
     step s x = let (y, s') = runState (f x) s
                in (s', y)
+
+mealyStateSlow
+    :: (HiddenClockReset domain gated synchronous, Undefined s)
+    => Signal domain Bool
+    -> (i -> State s o)
+    -> s
+    -> (Signal domain i -> Signal domain o)
+mealyStateSlow tick f s0 x = mealy step s0 (bundle (tick, x))
+  where
+    step s (tick, x) = let (y, s') = runState (f x) s
+                       in (if tick then s' else s, y)
 
 activeLowReset :: Reset domain Asynchronous -> Reset domain Asynchronous
 activeLowReset = unsafeToAsyncReset . (not <$>) . unsafeFromAsyncReset
