@@ -1,6 +1,7 @@
 {-# LANGUAGE GADTs, DataKinds, PolyKinds, NoStarIsType #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE TypeFamilyDependencies #-}
+{-# LANGUAGE UndecidableInstances #-}
 module Cactus.Clash.Counters (Indices, counterProdSum) where
 
 import Clash.Prelude
@@ -74,10 +75,14 @@ instance (KnownNats (n:ns), IsCounterProd nss) => IsCounterProd ((n:ns) : nss) w
     prodMinBound _ = sumMinBound (Proxy @(n:ns)) :-: prodMinBound (Proxy @nss)
 
 counterProdSum
-  :: (HiddenClockReset dom gated synchronous, KnownLength (Map CounterSum_ nss), IsCounterProd nss)
+  :: ( HiddenClockReset dom gated synchronous
+    , KnownLength (Map CounterSum_ nss)
+    , IsCounterProd nss
+    , Undefined (Product (Map CounterSum_ nss))
+    )
   => proxy nss
   -> Signal dom Bool
-  -> Unbundled dom (Product (Map CounterSum_ nss))
-counterProdSum nss tick = unbundle r
+  -> Product (ToSignals dom (Map CounterSum_ nss))
+counterProdSum nss tick = unbundleProd r
   where
     r = regEn (prodMinBound nss) tick $ prodSucc nss <$> r

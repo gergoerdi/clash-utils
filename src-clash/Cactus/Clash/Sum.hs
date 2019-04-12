@@ -1,34 +1,24 @@
-{-# LANGUAGE GADTs, StandaloneDeriving, DataKinds, PolyKinds, NoStarIsType #-}
-{-# LANGUAGE TypeFamilyDependencies, FlexibleInstances #-}
-{-# LANGUAGE EmptyCase #-}
+{-# LANGUAGE TypeFamilyDependencies, EmptyCase, PatternSynonyms, NoStarIsType #-}
 module Cactus.Clash.Sum where
 
 import Clash.Prelude
 import Control.DeepSeq
-import Data.Kind
+import Data.Kind (Type)
 
-data Sum (ts :: [Type]) where
-    Here :: a -> Sum (a : ts)
-    There :: Sum ts -> Sum (a : ts)
+newtype Sum_ a = Sum_ a
 
-instance Show (Sum '[]) where show x = case x of {}
-deriving instance (Show t, Show (Sum ts)) => Show (Sum (t : ts))
+data Void
 
-instance Eq (Sum '[]) where _ == _ = True
-deriving instance (Eq t, Eq (Sum ts)) => Eq (Sum (t : ts))
+type family Sum (ts :: [Type]) = (res :: Type) | res -> ts where
+    Sum '[] = Void
+    Sum (t:ts) = Either t (Sum ts)
 
-instance Ord (Sum '[]) where compare _ _ = EQ
-deriving instance (Ord t, Ord (Sum ts)) => Ord (Sum (t : ts))
+pattern Here :: t -> Either t (Sum ts)
+pattern Here x = Left x
 
-instance NFData (Sum '[]) where
-    rnf x = case x of {}
+pattern There :: Sum ts -> Either t (Sum ts)
+pattern There y = Right y
 
-instance (NFData t, NFData (Sum ts)) => NFData (Sum (t:ts)) where
-    rnf (Here x) = rnf x
-    rnf (There y) = rnf y
-
-instance Bundle (Sum ts) where
-    type Unbundled dom (Sum ts) = Signal dom (Sum ts)
-
-instance Undefined (Sum ts) where
-    deepErrorX = errorX
+the :: Sum '[a] -> a
+the (Here x) = x
+the (There y) = case y of {}
