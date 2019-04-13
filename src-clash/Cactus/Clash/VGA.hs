@@ -1,86 +1,90 @@
-{-# LANGUAGE RecordWildCards #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards, ViewPatterns #-}
 {-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE GADTs #-}
 module Cactus.Clash.VGA where
 
 import Clash.Prelude
 import Cactus.Clash.Util
 import Cactus.Clash.Clock
-import Data.Word
+import Cactus.Clash.Product
+import Cactus.Clash.Counters
+import Data.Proxy
+import Data.Maybe
 
-data VGATiming n = VGATiming
-    { visibleSize, pre, syncPulse, post :: Unsigned n
+data VGATiming = VGATiming
+    { visibleSize, pre, syncPulse, post :: Nat
     }
     deriving (Show)
 
-data VGATimings (ps :: Nat) w h = VGATimings
-    { vgaHorizTiming :: VGATiming w
-    , vgaVertTiming :: VGATiming h
+data VGATimings = VGATimings
+    { pixelClock :: Nat
+    , vgaHorizTiming :: VGATiming
+    , vgaVertTiming :: VGATiming
     }
     deriving (Show)
 
 data VGADriver dom w h = VGADriver
-    { vgaVSync :: Signal dom Bit
-    , vgaHSync :: Signal dom Bit
-    , vgaStartFrame :: Signal dom Bool
-    , vgaStartLine :: Signal dom Bool
-    , vgaX :: Signal dom (Maybe (Unsigned w))
-    , vgaY :: Signal dom (Maybe (Unsigned h))
+    { vgaVSync :: Signal dom Bool
+    , vgaHSync :: Signal dom Bool
+    , vgaEndFrame :: Signal dom Bool
+    , vgaEndLine :: Signal dom Bool
+    , vgaX :: Signal dom (Maybe (Index w))
+    , vgaY :: Signal dom (Maybe (Index h))
     }
+
+data SVGATimings (timings :: VGATimings) where
+    SVGATimings
+      :: ( KnownNat w, KnownNat preH, KnownNat pulseH, KnownNat postH
+        , KnownNat h, KnownNat preV, KnownNat pulseV, KnownNat postV
+        )
+      => SVGATimings ('VGATimings ps ('VGATiming w preH pulseH postH) ('VGATiming h preV pulseV postV))
 
 vgaDriver
-    :: (HiddenClockReset dom gated synchronous, KnownNat w, KnownNat h)
+    :: forall timings dom gated synchronous s ps w preH pulseH postH h preV pulseV postV.
+      (HiddenClockReset dom gated synchronous)
     => (dom ~ Dom s ps)
-    => VGATimings ps w h
+    => (timings ~ 'VGATimings ps ('VGATiming w preH pulseH postH) ('VGATiming h preV pulseV postV))
+    => SVGATimings timings
     -> VGADriver dom w h
-vgaDriver VGATimings{..} = VGADriver{..}
+vgaDriver timings@SVGATimings = VGADriver{..}
   where
-    vgaVSync = activeLow $ pure vSyncStart .<=. vCount .&&. vCount .<. pure vSyncEnd
-    vgaHSync = activeLow $ pure hSyncStart .<=. hCount .&&. hCount .<. pure hSyncEnd
-    vgaStartLine = hCount .==. pure hSyncStart
-    vgaStartFrame = vgaStartLine .&&. vCount .==. pure vSyncStart
-    vgaX = enable <$> (hCount .<. pure hSize) <*> hCount
-    vgaY = enable <$> (vCount .<. pure vSize) <*> vCount
+    horiz ::> vert ::> NilP = counterMul $ Proxy
+        @'[ [w, preH, pulseH, postH]
+          , [h, preV, pulseV, postV]
+          ]
 
-    endLine = hCount .==. pure hMax
-    endFrame = vCount .==. pure vMax
-    hCount = register 0 $ mux endLine 0 (hCount + 1)
-    vCount = regEn 0 endLine $ mux endFrame 0 (vCount + 1)
+    vgaX ::> _ ::> (fmap isJust -> vgaHSync) ::> _ = horiz
+    vgaY ::> _ ::> (fmap isJust -> vgaVSync) ::> _ = vert
 
-    VGATiming hSize hPre hSync hPost = vgaHorizTiming
-    hSyncStart = hSize + hPre
-    hSyncEnd = hSyncStart + hSync
-    hMax = sum [hSize, hPre, hSync, hPost] - 1
-
-    VGATiming vSize vPre vSync vPost = vgaVertTiming
-    vSyncStart = vSize + vPre
-    vSyncEnd = vSyncStart + vSync
-    vMax = sum [vSize, vPre, vSync, vPost] - 1
+    vgaEndLine = isFalling False (isJust <$> vgaX)
+    vgaEndFrame = isFalling False (isJust <$> vgaY)
 
 -- | VGA 640*480@60Hz, 25.175 MHz pixel clock
-vga640x480at60 :: VGATimings (FromHz 25_175_000) 10 10
-vga640x480at60 = VGATimings
-    { vgaHorizTiming = VGATiming 640 16 96 48
-    , vgaVertTiming  = VGATiming 480 11  2 31
-    }
+vga640x480at60 :: SVGATimings ('VGATimings
+    (FromHz 25_175_000)
+    ('VGATiming 640 16 96 48)
+    ('VGATiming 480 11  2 31))
+vga640x480at60 = SVGATimings
 
 -- | VGA 800x600@72Hz, 50 MHz pixel clock
-vga800x600at72 :: VGATimings (FromHz 50_000_000) 11 10
-vga800x600at72 = VGATimings
-    { vgaHorizTiming = VGATiming 800 56 120 64
-    , vgaVertTiming  = VGATiming 600 37   6 23
-    }
+vga800x600at72 :: SVGATimings ('VGATimings
+    (FromHz 50_000_000)
+    ('VGATiming 800 56 120 64)
+    ('VGATiming 600 37   6 23))
+vga800x600at72 = SVGATimings
 
 -- | VGA 800x600@60Hz, 40 MHz pixel clock
-vga800x600at60 :: VGATimings (FromHz 40_000_000) 11 10
-vga800x600at60 = VGATimings
-    { vgaHorizTiming = VGATiming 800 40 128 88
-    , vgaVertTiming  = VGATiming 600  1   4 23
-    }
+vga800x600at60 :: SVGATimings ('VGATimings
+    (FromHz 40_000_000)
+    ('VGATiming 800 40 128 88)
+    ('VGATiming 600  1   4 23))
+vga800x600at60 = SVGATimings
 
 -- | VGA 1024*768@60Hz, 65 MHz pixel clock
-vga1024x768at60 :: VGATimings (FromHz 65_000_000) 11 10
-vga1024x768at60 = VGATimings
-    { vgaHorizTiming = VGATiming 1024 24 136 160
-    , vgaVertTiming  = VGATiming  768  3   6  29
-    }
+-- | VGA 800x600@60Hz, 40 MHz pixel clock
+vga1024x768at60 :: SVGATimings ('VGATimings
+    (FromHz 40_000_000)
+    ('VGATiming 1024 24 136 160)
+    ('VGATiming  768  3   6  29))
+vga1024x768at60 = SVGATimings
