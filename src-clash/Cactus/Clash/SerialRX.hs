@@ -1,6 +1,7 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards, TupleSections #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
+{-# LANGUAGE NoStarIsType #-}
 module Cactus.Clash.SerialRX
     ( RXState(..)
     , rx
@@ -21,10 +22,11 @@ import Data.Int
 import Data.Bits
 import Data.Maybe
 import Data.Monoid
+import Data.Proxy
 
 data RXState = RXState
     { buf1, buf2 :: Bit
-    , cnt :: Word32
+    , cnt :: Integer
     , byte :: Word8
     , state :: MicroState
     }
@@ -38,7 +40,7 @@ data MicroState
     | RXCleanup
     deriving (Generic, NFData, Show, Undefined)
 
-rx0 :: Word32 -> Bit -> State RXState (Maybe Word8)
+rx0 :: Integer -> Bit -> State RXState (Maybe Word8)
 rx0 divider bit = do
     s@RXState{..} <- get
     modify $ \s -> s{ buf2 = buf1, buf1 = bit, cnt = cnt - 1 }
@@ -59,11 +61,12 @@ rx0 divider bit = do
     goto st = modify $ \s -> s{ cnt = divider, state = st }
 
 rx
-    :: (HiddenClockReset domain gated synchronous, domain ~ Dom s ps, KnownNat ps)
-    => Word32
+    :: forall rate domain gated synchronous proxy. (HiddenClockReset domain gated synchronous)
+    => (KnownNat rate, KnownNat (ClockDivider domain (2 * rate)))
+    => proxy rate
     -> Signal domain Bit
     -> Signal domain (Maybe Word8)
-rx serialRate = mealyState (rx0 $ fromIntegral clkRate `div` serialRate) s0
+rx rate = mealyState (rx0 $ natVal (Proxy @(ClockDivider domain (2 * rate)))) s0
   where
     s0 = RXState
         { buf1 = 0
