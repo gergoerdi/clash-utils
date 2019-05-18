@@ -1,3 +1,5 @@
+{-# LANGUAGE ScopedTypeVariables, DataKinds, GADTs #-}
+{-# LANGUAGE FlexibleContexts #-}
 module Cactus.Clash.Util
     ( mealyState
     , mealyStateSlow
@@ -20,6 +22,7 @@ module Cactus.Clash.Util
     , parity
     ) where
 
+import Prelude ()
 import Clash.Prelude
 import Control.Monad.State
 import Data.Word
