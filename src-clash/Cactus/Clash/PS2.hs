@@ -57,7 +57,7 @@ decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bi
             put Idle
 
 data KeyEvent = KeyPress | KeyRelease
-    deriving (Generic, NFData, Eq, Show)
+    deriving (Generic, NFData, Eq, Show, Undefined)
 
 data ScanCode = ScanCode KeyEvent Bool Word8
     deriving (Generic, NFData, Eq, Show)
