@@ -1,6 +1,6 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving, DerivingStrategies #-}
 {-# LANGUAGE DeriveGeneric, UndecidableInstances, MultiParamTypeClasses #-}
-{-# LANGUAGE FlexibleInstances, StandaloneDeriving #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts, StandaloneDeriving #-}
 module Cactus.Clash.CPU
        ( CPU
        , input, output, abort

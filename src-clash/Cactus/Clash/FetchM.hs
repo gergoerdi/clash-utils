@@ -1,9 +1,12 @@
-{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE RecordWildCards, GeneralizedNewtypeDeriving, DerivingStrategies #-}
+{-# LANGUAGE DataKinds, TypeOperators #-}
+{-# LANGUAGE DeriveAnyClass, DeriveGeneric #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.Extra.Solver #-}
+{-# OPTIONS_GHC -fplugin GHC.TypeLits.KnownNat.Solver #-}
 module Cactus.Clash.FetchM where
 
 import Prelude ()
 import Clash.Prelude hiding (lift)
-
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Trans.Except

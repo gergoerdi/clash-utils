@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveGeneric, FlexibleInstances, UndecidableInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE DeriveGeneric, UndecidableInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE TypeOperators, TypeFamilies #-}
+{-# LANGUAGE FlexibleInstances, FlexibleContexts #-}
 module Cactus.Clash.CPU.Internal where
 
 import Clash.Prelude hiding (lift)
