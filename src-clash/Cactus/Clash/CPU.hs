@@ -5,49 +5,50 @@ module Cactus.Clash.CPU
        ( CPU
        , input, output, abort
        , runCPU, runCPUDebug
-       , HKD(..)
-
-       , unG -- XXX
        ) where
 
 import Clash.Prelude hiding (lift)
-import Cactus.Clash.CPU.Internal
 import Control.Monad.State hiding (state)
 import GHC.Generics
+import Data.Generic.HKD
 import Control.Monad.Identity
 import Control.Monad.RWS
 import Control.Monad.Trans.Class
 import Control.Monad.Trans.Except
+import Data.Barbie
 
-newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS i (G (o Last)) s) a }
+newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS i (HKD o Last) s) a }
     deriving newtype (Functor)
-deriving newtype instance (Generic (o Last), GMonoid (Rep (o Last))) => Applicative (CPU i s o)
-deriving newtype instance (Generic (o Last), GMonoid (Rep (o Last))) => Monad (CPU i s o)
-deriving newtype instance (Generic (o Last), GMonoid (Rep (o Last))) => MonadState s (CPU i s o)
+deriving newtype instance (Monoid (HKD o Last)) => Applicative (CPU i s o)
+deriving newtype instance (Monoid (HKD o Last)) => Monad (CPU i s o)
+deriving newtype instance (Monoid (HKD o Last)) => MonadState s (CPU i s o)
 
-input :: (Generic (o Last), GMonoid (Rep (o Last))) => CPU i s o i
+input :: (Monoid (HKD o Last)) => CPU i s o i
 input = CPU ask
 
-output :: (Generic (o Last), GMonoid (Rep (o Last))) => o Last -> CPU i s o ()
-output = CPU . tell . G
+output :: (Monoid (HKD o Last)) => HKD o Last -> CPU i s o ()
+output = CPU . tell
 
-abort :: (Generic (o Last), GMonoid (Rep (o Last))) => CPU i s o a
+abort :: (Monoid (HKD o Last)) => CPU i s o a
 abort = CPU $ throwE ()
 
 runCPU
-  :: (Generic (o Identity), Generic (o Last), GUpdate (Rep (o Identity)) (Rep (o Last)))
-  => (s -> o Identity) -> CPU i s o () -> (i -> State s (o Identity))
+  :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
+  => (s -> o) -> CPU i s o () -> (i -> State s o)
 runCPU mkDef cpu inp = do
     s <- get
     let (s', writes) = execRWS (runExceptT $ unCPU cpu) inp s
     put s'
     def <- gets mkDef
-    return $ update def (unG writes)
+    return $ update def writes
 
 runCPUDebug
-  :: (Generic (o Identity), Generic (o Last), GUpdate (Rep (o Identity)) (Rep (o Last)))
-  => (s -> o Identity) -> CPU i s o () -> (i -> State s (s, o Identity))
+  :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
+  => (s -> o) -> CPU i s o () -> (i -> State s (s, o))
 runCPUDebug mkDef cpu inp = do
     s0 <- get
     out <- runCPU mkDef cpu inp
     return (s0, out)
+
+update :: (Generic a, Construct Identity a, FunctorB (HKD a), ProductBC (HKD a)) => a -> HKD a Last -> a
+update initial edits = runIdentity . construct $ bzipWith (\i -> maybe i Identity . getLast) (deconstruct initial) edits
