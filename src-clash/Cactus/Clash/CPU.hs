@@ -26,14 +26,17 @@ deriving newtype instance (Monoid (HKD o Last)) => Monad (CPU i s o)
 deriving newtype instance (Monoid (HKD o Last)) => MonadState s (CPU i s o)
 
 instance (HasField' field f a b, Applicative f) => IsLabel field (b -> Endo (HKD a f)) where
-    fromLabel x = Endo $ \obj -> obj & field @field .~ pure x
+    {-# INLINE fromLabel #-}
+    fromLabel x = Endo $ field @field .~ pure x
 
 input :: (Monoid (HKD o Last)) => CPU i s o i
 input = CPU ask
 
+{-# INLINE output_ #-}
 output_ :: (Monoid (HKD o Last)) => HKD o Last -> CPU i s o ()
 output_ = CPU . tell
 
+{-# INLINE output #-}
 output :: (Monoid (HKD o Last)) => Endo (HKD o Last) -> CPU i s o ()
 output f = output_ $ appEndo f mempty
 
