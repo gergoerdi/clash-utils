@@ -66,7 +66,7 @@ data ScanState
     = Init
     | Extended
     | Code KeyEvent Bool
-    deriving (Generic, Undefined)
+    deriving (Show, Generic, Undefined)
 
 -- TODO: rewrite this for clarity.
 -- All it does is it parses 0xE0 0xXX into an extended code, and
