@@ -22,7 +22,7 @@ data VGATimings (ps :: Nat) w h = VGATimings
 data VGADriver dom w h = VGADriver
     { vgaVSync :: Signal dom Bit
     , vgaHSync :: Signal dom Bit
-    , vgaStartFrame :: Signal dom Bool
+    , vgaEndFrame :: Signal dom Bool
     , vgaStartLine :: Signal dom Bool
     , vgaX :: Signal dom (Maybe (Unsigned w))
     , vgaY :: Signal dom (Maybe (Unsigned h))
@@ -38,7 +38,7 @@ vgaDriver VGATimings{..} = VGADriver{..}
     vgaVSync = activeLow $ pure vSyncStart .<=. vCount .&&. vCount .<. pure vSyncEnd
     vgaHSync = activeLow $ pure hSyncStart .<=. hCount .&&. hCount .<. pure hSyncEnd
     vgaStartLine = hCount .==. pure hSyncStart
-    vgaStartFrame = vgaStartLine .&&. vCount .==. pure vSyncStart
+    vgaEndFrame = vgaStartLine .&&. vCount .==. pure vSize
     vgaX = enable <$> (hCount .<. pure hSize) <*> hCount
     vgaY = enable <$> (vCount .<. pure vSize) <*> vCount
 
