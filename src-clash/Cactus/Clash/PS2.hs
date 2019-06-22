@@ -11,7 +11,6 @@ module Cactus.Clash.PS2
 
 import Clash.Prelude
 import Cactus.Clash.Util
-import Data.Word
 import Control.Monad.State
 import Control.Monad.Trans.Writer
 import Data.Monoid
@@ -33,14 +32,14 @@ samplePS2 PS2{..} = enable <$> isFalling low ps2Clk' <*> ps2Data'
 
 data PS2State
     = Idle
-    | Bit Word8 (Index 8)
-    | Parity Word8
-    | Stop (Maybe Word8)
+    | Bit (Unsigned 8) (Index 8)
+    | Parity (Unsigned 8)
+    | Stop (Maybe (Unsigned 8))
     deriving (Show, Eq, Generic, Undefined)
 
 decodePS2
     :: (HiddenClockReset dom gated synchronous)
-    => Signal dom (Maybe Bit) -> Signal dom (Maybe Word8)
+    => Signal dom (Maybe Bit) -> Signal dom (Maybe (Unsigned 8))
 decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bit $ \bit -> do
     state <- get
     case state of
@@ -59,7 +58,7 @@ decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bi
 data KeyEvent = KeyPress | KeyRelease
     deriving (Generic, NFData, Eq, Show, Undefined)
 
-data ScanCode = ScanCode KeyEvent Bool Word8
+data ScanCode = ScanCode KeyEvent (Unsigned 9)
     deriving (Generic, NFData, Eq, Show)
 
 data ScanState
@@ -75,10 +74,10 @@ data ScanState
 -- does that?!?
 parseScanCode
     :: (HiddenClockReset dom gated synchronous)
-    => Signal dom (Maybe Word8) -> Signal dom (Maybe ScanCode)
+    => Signal dom (Maybe (Unsigned 8)) -> Signal dom (Maybe ScanCode)
 parseScanCode = flip mealyState Init $ \raw -> fmap getLast . execWriterT . forM_ raw $ \raw -> do
     let finish ev ext = do
-            tell $ Last . Just $ ScanCode ev ext raw
+            tell $ Last . Just $ ScanCode ev $ bitCoerce (ext, raw)
             put Init
     state <- get
     case state of
@@ -88,6 +87,3 @@ parseScanCode = flip mealyState Init $ \raw -> fmap getLast . execWriterT . forM
         Extended | raw == 0xf0 -> put $ Code KeyRelease True
                  | otherwise -> finish KeyPress True
         Code ev ext -> finish ev ext
-  where
-    fromBytes :: (Word8, Word8) -> Word16
-    fromBytes = unpack . pack
