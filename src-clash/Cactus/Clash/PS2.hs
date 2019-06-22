@@ -59,12 +59,12 @@ data KeyEvent = KeyPress | KeyRelease
     deriving (Generic, NFData, Eq, Show, Undefined)
 
 data ScanCode = ScanCode KeyEvent (Unsigned 9)
-    deriving (Generic, NFData, Eq, Show)
+    deriving (Generic, NFData, Eq, Show, Undefined)
 
 data ScanState
     = Init
     | Extended
-    | Code KeyEvent Bool
+    | Code KeyEvent Bit
     deriving (Show, Generic, Undefined)
 
 -- TODO: rewrite this for clarity.
@@ -82,8 +82,8 @@ parseScanCode = flip mealyState Init $ \raw -> fmap getLast . execWriterT . forM
     state <- get
     case state of
         Init | raw == 0xe0 -> put $ Extended
-             | raw == 0xf0 -> put $ Code KeyRelease False
-             | otherwise -> finish KeyPress False
-        Extended | raw == 0xf0 -> put $ Code KeyRelease True
-                 | otherwise -> finish KeyPress True
+             | raw == 0xf0 -> put $ Code KeyRelease low
+             | otherwise -> finish KeyPress low
+        Extended | raw == 0xf0 -> put $ Code KeyRelease high
+                 | otherwise -> finish KeyPress high
         Code ev ext -> finish ev ext
