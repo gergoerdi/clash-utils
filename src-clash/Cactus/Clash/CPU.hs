@@ -19,28 +19,30 @@ import Data.Barbie
 import Control.Lens (Lens, (&), (.~))
 import GHC.OverloadedLabels
 
-newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS i (HKD o Last) s) a }
+type Partial o = HKD o Last
+
+newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS i (Partial o) s) a }
     deriving newtype (Functor)
-deriving newtype instance (Monoid (HKD o Last)) => Applicative (CPU i s o)
-deriving newtype instance (Monoid (HKD o Last)) => Monad (CPU i s o)
-deriving newtype instance (Monoid (HKD o Last)) => MonadState s (CPU i s o)
+deriving newtype instance (Monoid (Partial o)) => Applicative (CPU i s o)
+deriving newtype instance (Monoid (Partial o)) => Monad (CPU i s o)
+deriving newtype instance (Monoid (Partial o)) => MonadState s (CPU i s o)
 
 instance (HasField' field f a b, Applicative f) => IsLabel field (b -> Endo (HKD a f)) where
     {-# INLINE fromLabel #-}
     fromLabel x = Endo $ field @field .~ pure x
 
-input :: (Monoid (HKD o Last)) => CPU i s o i
-input = CPU ask
+input :: (Monoid (Partial o)) => CPU i s o i
+input = CPU . asks $ fst
 
 {-# INLINE output_ #-}
-output_ :: (Monoid (HKD o Last)) => HKD o Last -> CPU i s o ()
+output_ :: (Monoid (Partial o)) => Partial o -> CPU i s o ()
 output_ = CPU . tell
 
 {-# INLINE output #-}
-output :: (Monoid (HKD o Last)) => Endo (HKD o Last) -> CPU i s o ()
+output :: (Monoid (Partial o)) => Endo (Partial o) -> CPU i s o ()
 output f = output_ $ appEndo f mempty
 
-abort :: (Monoid (HKD o Last)) => CPU i s o a
+abort :: (Monoid (Partial o)) => CPU i s o a
 abort = CPU $ throwE ()
 
 runCPU
