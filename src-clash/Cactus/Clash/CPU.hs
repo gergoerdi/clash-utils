@@ -4,6 +4,7 @@
 module Cactus.Clash.CPU
        ( CPU
        , input, output, abort
+       , getStart, getsStart
        , runCPU, runCPUDebug
        ) where
 
@@ -21,7 +22,7 @@ import GHC.OverloadedLabels
 
 type Partial o = HKD o Last
 
-newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS i (Partial o) s) a }
+newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS (i, s) (Partial o) s) a }
     deriving newtype (Functor)
 deriving newtype instance (Monoid (Partial o)) => Applicative (CPU i s o)
 deriving newtype instance (Monoid (Partial o)) => Monad (CPU i s o)
@@ -33,6 +34,12 @@ instance (HasField' field f a b, Applicative f) => IsLabel field (b -> Endo (HKD
 
 input :: (Monoid (Partial o)) => CPU i s o i
 input = CPU . asks $ fst
+
+getStart :: (Monoid (Partial o)) => CPU i s o s
+getStart = getsStart id
+
+getsStart :: (Monoid (Partial o)) => (s -> a) -> CPU i s o a
+getsStart f = CPU . asks $ f . snd
 
 {-# INLINE output_ #-}
 output_ :: (Monoid (Partial o)) => Partial o -> CPU i s o ()
@@ -50,7 +57,7 @@ runCPU
   => (s -> o) -> CPU i s o () -> (i -> State s o)
 runCPU mkDef cpu inp = do
     s <- get
-    let (s', writes) = execRWS (runExceptT $ unCPU cpu) inp s
+    let (s', writes) = execRWS (runExceptT $ unCPU cpu) (inp, s) s
     put s'
     def <- gets mkDef
     return $ update def writes
