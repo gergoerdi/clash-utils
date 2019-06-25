@@ -19,6 +19,7 @@ import Control.Monad.Trans.Except
 import Data.Barbie
 import Control.Lens (Lens, (&), (.~))
 import GHC.OverloadedLabels
+import Data.Generics.Product.Fields (HasField')
 
 type Partial o = HKD o Last
 
@@ -28,7 +29,7 @@ deriving newtype instance (Monoid (Partial o)) => Applicative (CPU i s o)
 deriving newtype instance (Monoid (Partial o)) => Monad (CPU i s o)
 deriving newtype instance (Monoid (Partial o)) => MonadState s (CPU i s o)
 
-instance (HasField' field f a b, Applicative f) => IsLabel field (b -> Endo (HKD a f)) where
+instance (HasField' field (HKD a f) (f b), Applicative f) => IsLabel field (b -> Endo (HKD a f)) where
     {-# INLINE fromLabel #-}
     fromLabel x = Endo $ field @field .~ pure x
 
