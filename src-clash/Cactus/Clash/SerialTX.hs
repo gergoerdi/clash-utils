@@ -46,25 +46,26 @@ tx0 input = do
             return (False, lsb . pack $ x)
 
 txDyn
-    :: (KnownNat n, HiddenClockReset domain gated synchronous)
-    => Signal domain Bool
-    -> Signal domain (Maybe (Unsigned n))
-    -> TXOut domain
+    :: (KnownNat n, HiddenClockResetEnable dom conf)
+    => Signal dom Bool
+    -> Signal dom (Maybe (Unsigned n))
+    -> TXOut dom
 txDyn tick inp = TXOut{..}
   where
     (txReady, txOut) = unbundle $ mealyStateSlow tick tx0 TXIdle inp
 
 tx
-    :: (KnownNat n, HiddenClockReset domain gated synchronous)
-    => (KnownNat rate, KnownNat (ClockDivider domain rate))
+    :: (KnownNat n, HiddenClockResetEnable dom conf)
+    => (KnownNat rate, KnownNat (ClockDivider conf rate))
     => proxy rate
-    -> Signal domain (Maybe (Unsigned n))
-    -> TXOut domain
+    -> Signal dom (Maybe (Unsigned n))
+    -> TXOut dom
 tx rate = txDyn (divider rate)
 
 fifo
-    :: forall domain gated synchronous a. (HiddenClockReset domain gated synchronous)
-    => Signal domain (Maybe a) -> Signal domain Bool -> (Signal domain (Maybe a), Signal domain Bool)
+    :: forall a. (Undefined a)
+    => forall dom conf. (HiddenClockResetEnable dom conf)
+    => Signal dom (Maybe a) -> Signal dom Bool -> (Signal dom (Maybe a), Signal dom Bool)
 fifo input consumed = unbundle $ mealyState step Nothing $ bundle (input, consumed)
   where
     step (input, consumed) = do

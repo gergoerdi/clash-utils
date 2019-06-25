@@ -31,10 +31,10 @@ blockRam_
 blockRam_ n w =
     [e|
      let ram :: forall addr n value. (Enum addr, BitPack value, KnownNat (BitSize value))
-             => forall domain gated. (HiddenClock domain gated)
-             => Signal domain addr
-             -> Signal domain (Maybe (addr, value))
-             -> Signal domain value
+             => forall dom conf. (HiddenClockResetEnable dom conf)
+             => Signal dom addr
+             -> Signal dom (Maybe (addr, value))
+             -> Signal dom value
          ram r w = unpack <$> blockRamFile (SNat @($n')) $img r (fmap (fmap pack) <$> w)
      in ram
     |]

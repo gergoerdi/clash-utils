@@ -3,7 +3,6 @@
 module Cactus.Clash.Util
     ( mealyState
     , mealyStateSlow
-    , activeLowReset
     , activeLow
     , activeHigh
     , countTo
@@ -29,23 +28,20 @@ import Data.Word
 import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
 
-mealyState :: (HiddenClockReset domain gated synchronous, Undefined s)
-           => (i -> State s o) -> s -> (Signal domain i -> Signal domain o)
+mealyState :: (HiddenClockResetEnable dom conf, Undefined s)
+           => (i -> State s o) -> s -> (Signal dom i -> Signal dom o)
 mealyState = mealyStateSlow (pure True)
 
 mealyStateSlow
-    :: (HiddenClockReset domain gated synchronous, Undefined s)
-    => Signal domain Bool
+    :: (HiddenClockResetEnable dom conf, Undefined s)
+    => Signal dom Bool
     -> (i -> State s o)
     -> s
-    -> (Signal domain i -> Signal domain o)
+    -> (Signal dom i -> Signal dom o)
 mealyStateSlow tick f s0 x = mealy step s0 (bundle (tick, x))
   where
     step s (tick, x) = let (y, s') = runState (f x) s
                        in (if tick then s' else s, y)
-
-activeLowReset :: Reset domain Asynchronous -> Reset domain Asynchronous
-activeLowReset = unsafeToAsyncReset . (not <$>) . unsafeFromAsyncReset
 
 activeLow :: (Functor f) => f Bool -> f Bit
 activeLow = fmap complement . activeHigh
@@ -54,31 +50,31 @@ activeHigh :: (Functor f) => f Bool -> f Bit
 activeHigh = fmap boolToBit
 
 countWhen
-    :: forall a domain gated synchronous.
-      (Undefined a, Num a, HiddenClockReset domain gated synchronous)
-    => Signal domain Bool -> Signal domain a
+    :: forall a dom conf.
+      (Undefined a, Num a, HiddenClockResetEnable dom conf)
+    => Signal dom Bool -> Signal dom a
 countWhen s = fix $ regEn 0 s . (1 +)
 
 diff
-    :: (HiddenClockReset domain gated synchronous)
-    => Signal domain (Maybe a) -> Signal domain (Maybe a)
+    :: (HiddenClockResetEnable dom conf)
+    => Signal dom (Maybe a) -> Signal dom (Maybe a)
 diff = mealy step False
   where
     step False new = (isJust new, new)
     step True new = (isJust new, Nothing)
 
 countTo
-    :: (Undefined a, Eq a, Num a, HiddenClockReset domain gated synchronous)
-    => Signal domain a -> Signal domain Bool
+    :: (Undefined a, Eq a, Num a, HiddenClockResetEnable dom conf)
+    => Signal dom a -> Signal dom Bool
 countTo n = cnt .==. n
   where
     cnt = register 0 $ mux (cnt .==. n) 0 (cnt + 1)
 
 muxRR
-    :: forall domain gated synchronous n a. (HiddenClockReset domain gated synchronous, KnownNat n)
-    => Signal domain Bool
-    -> Vec n (Signal domain a)
-    -> (Signal domain (Vec n Bool), Signal domain a)
+    :: forall dom conf n a. (HiddenClockResetEnable dom conf, KnownNat n)
+    => Signal dom Bool
+    -> Vec n (Signal dom a)
+    -> (Signal dom (Vec n Bool), Signal dom a)
 muxRR next ss = let (mask, i) = unbundle $ moore step id (mask0, (0 :: Index n)) next
                 in (mask, (!!) <$> bundle ss <*> i)
   where
@@ -108,8 +104,8 @@ shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> a
 shiftInLeft b bs = unpack . pack . fst $ shiftInAt0 (unpack . pack $ bs) (b :> Nil)
 
 debounce
-    :: (HiddenClockReset domain gated synchronous, KnownNat n, Eq a, Undefined a)
-    => SNat n -> a -> Signal domain a -> Signal domain a
+    :: (HiddenClockResetEnable dom conf, KnownNat n, Eq a, Undefined a)
+    => SNat n -> a -> Signal dom a -> Signal dom a
 debounce n x0 = mealyState step (unsigned n 0, x0, x0)
   where
     step this = do
@@ -133,7 +129,7 @@ extremum xs
   | otherwise = Nothing
 
 regShiftIn
-    :: (HiddenClockReset dom gated synchronous, KnownNat n, Undefined a)
+    :: (HiddenClockResetEnable dom conf, KnownNat n, Undefined a)
     => Vec n a -> Signal dom (Maybe a) -> (Signal dom (Vec n a), Signal dom (Maybe a))
 regShiftIn = mealyB $ \xs x -> let out@(xs', _) = shiftIn x xs in (xs', out)
   where

@@ -11,11 +11,11 @@ import Cactus.Clash.Util
 
 type FromHz rate = 1_000_000_000_000 `Div` rate
 
-type family ClockDivider dom (n :: Nat) where
-    ClockDivider (Dom s ps) n = n `Div` ps
+type family ClockDivider conf (n :: Nat) where
+    ClockDivider ('DomainConfiguration _ ps _ _ _ _) n = n `Div` ps
 
 divider
-    :: forall n proxy domain gated synchronous.
-       (KnownNat n, KnownNat (ClockDivider domain n), HiddenClockReset domain gated synchronous)
-    => proxy n -> Signal domain Bool
-divider _ = countTo (pure $ maxBound @(Index (ClockDivider domain n)))
+    :: forall n proxy dom conf.
+       (KnownNat n, KnownNat (ClockDivider conf n), HiddenClockResetEnable dom conf)
+    => proxy n -> Signal dom Bool
+divider _ = countTo (pure $ maxBound @(Index (ClockDivider conf n)))

@@ -31,22 +31,22 @@ deriving instance (KnownNat n, 1 <= n) => Foldable (SevenSegment n)
 deriving instance (KnownNat n, 1 <= n) => Traversable (SevenSegment n)
 
 driveSS
-    :: (HiddenClockReset domain gated synchronous, KnownNat n)
-    => Word32 -> Signal domain (Vec n Nybble) -> Signal domain (SevenSegment n Bool)
+    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    => Word32 -> Signal dom (Vec n Nybble) -> Signal dom (SevenSegment n Bool)
 driveSS = driveSS' $ \d -> (encodeHexSS d, False)
 
 driveSS'
-    :: (HiddenClockReset domain gated synchronous, KnownNat n)
-    => (a -> (Vec 7 Bool, Bool)) -> Word32 -> Signal domain (Vec n a) -> Signal domain (SevenSegment n Bool)
+    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    => (a -> (Vec 7 Bool, Bool)) -> Word32 -> Signal dom (Vec n a) -> Signal dom (SevenSegment n Bool)
 driveSS' toSegments muxSpeed inputs = SevenSegment <$> mask <*> segments <*> dp
   where
-    (mask, input) = muxRR (countTo muxSpeed) (unbundle inputs)
+    (mask, input) = muxRR (countTo $ pure muxSpeed) (unbundle inputs)
     (segments, dp) = unbundle $ toSegments <$> input
 
 dim
-    :: (HiddenClockReset domain gated synchronous, KnownNat n)
-    => Word32 -> Signal domain (Vec n Bool) -> Signal domain (Vec n Bool)
-dim n xs = bundle $ (.&&.) <$> repeat (countTo n) <*> unbundle xs
+    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    => Word32 -> Signal dom (Vec n Bool) -> Signal dom (Vec n Bool)
+dim n xs = bundle $ (.&&.) <$> repeat (countTo $ pure n) <*> unbundle xs
 
 splitByte :: Word8 -> (Nybble, Nybble)
 splitByte = unpack . pack

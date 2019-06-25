@@ -23,7 +23,7 @@ data PS2 dom = PS2
     }
 
 samplePS2
-    :: (HiddenClockReset dom gated synchronous)
+    :: (HiddenClockResetEnable dom conf)
     => PS2 dom -> Signal dom (Maybe Bit)
 samplePS2 PS2{..} = enable <$> isFalling low ps2Clk' <*> ps2Data'
   where
@@ -38,7 +38,7 @@ data PS2State
     deriving (Show, Eq, Generic, Undefined)
 
 decodePS2
-    :: (HiddenClockReset dom gated synchronous)
+    :: (HiddenClockResetEnable dom conf)
     => Signal dom (Maybe Bit) -> Signal dom (Maybe (Unsigned 8))
 decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bit $ \bit -> do
     state <- get
@@ -73,7 +73,7 @@ data ScanState
 -- the key release marker 0xF0 is always the second-to-last byte. Who
 -- does that?!?
 parseScanCode
-    :: (HiddenClockReset dom gated synchronous)
+    :: (HiddenClockResetEnable dom conf)
     => Signal dom (Maybe (Unsigned 8)) -> Signal dom (Maybe ScanCode)
 parseScanCode = flip mealyState Init $ \raw -> fmap getLast . execWriterT . forM_ raw $ \raw -> do
     let finish ev ext = do
