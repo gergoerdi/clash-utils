@@ -3,6 +3,7 @@
 module Cactus.Clash.Clock
     ( FromHz
     , fromHz
+    , ClockPeriod
     , ClockDivider
     , divider
     ) where

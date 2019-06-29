@@ -30,7 +30,7 @@ data VGADriver dom w h = VGADriver
 
 vgaDriver
     :: (HiddenClockResetEnable dom, KnownNat w, KnownNat h)
-    => (KnownConf dom ~ 'DomainConfiguration _name ps _edge _reset _init _polarity)
+    => (ClockPeriod (KnownConf dom) ~ ps)
     => VGATimings ps w h
     -> VGADriver dom w h
 vgaDriver VGATimings{..} = VGADriver{..}
