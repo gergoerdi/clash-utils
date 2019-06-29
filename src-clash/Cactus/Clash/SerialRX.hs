@@ -61,12 +61,12 @@ rx0 divider bit = do
     goto st = modify $ \s -> s{ cnt = divider, state = st }
 
 rx
-    :: forall rate dom conf proxy. (HiddenClockResetEnable dom conf)
-    => (KnownNat rate, KnownNat (ClockDivider conf (2 * rate)))
+    :: forall rate dom proxy. (KnownNat rate, KnownNat (ClockDivider dom (2 * rate)))
+    => (HiddenClockResetEnable dom)
     => proxy rate
     -> Signal dom Bit
     -> Signal dom (Maybe Word8)
-rx rate = mealyState (rx0 $ natVal (Proxy @(ClockDivider conf (2 * rate)))) s0
+rx rate = mealyState (rx0 $ natVal (Proxy @(ClockDivider dom (2 * rate)))) s0
   where
     s0 = RXState
         { buf1 = 0

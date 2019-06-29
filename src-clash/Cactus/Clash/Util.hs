@@ -28,12 +28,12 @@ import Data.Word
 import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
 
-mealyState :: (HiddenClockResetEnable dom conf, Undefined s)
+mealyState :: (HiddenClockResetEnable dom, Undefined s)
            => (i -> State s o) -> s -> (Signal dom i -> Signal dom o)
 mealyState = mealyStateSlow (pure True)
 
 mealyStateSlow
-    :: (HiddenClockResetEnable dom conf, Undefined s)
+    :: (HiddenClockResetEnable dom, Undefined s)
     => Signal dom Bool
     -> (i -> State s o)
     -> s
@@ -50,13 +50,13 @@ activeHigh :: (Functor f) => f Bool -> f Bit
 activeHigh = fmap boolToBit
 
 countWhen
-    :: forall a dom conf.
-      (Undefined a, Num a, HiddenClockResetEnable dom conf)
+    :: forall a dom.
+      (Undefined a, Num a, HiddenClockResetEnable dom)
     => Signal dom Bool -> Signal dom a
 countWhen s = fix $ regEn 0 s . (1 +)
 
 diff
-    :: (HiddenClockResetEnable dom conf)
+    :: (HiddenClockResetEnable dom)
     => Signal dom (Maybe a) -> Signal dom (Maybe a)
 diff = mealy step False
   where
@@ -64,14 +64,14 @@ diff = mealy step False
     step True new = (isJust new, Nothing)
 
 countTo
-    :: (Undefined a, Eq a, Num a, HiddenClockResetEnable dom conf)
+    :: (Undefined a, Eq a, Num a, HiddenClockResetEnable dom)
     => Signal dom a -> Signal dom Bool
 countTo n = cnt .==. n
   where
     cnt = register 0 $ mux (cnt .==. n) 0 (cnt + 1)
 
 muxRR
-    :: forall dom conf n a. (HiddenClockResetEnable dom conf, KnownNat n)
+    :: forall dom n a. (HiddenClockResetEnable dom, KnownNat n)
     => Signal dom Bool
     -> Vec n (Signal dom a)
     -> (Signal dom (Vec n Bool), Signal dom a)
@@ -104,7 +104,7 @@ shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> a
 shiftInLeft b bs = unpack . pack . fst $ shiftInAt0 (unpack . pack $ bs) (b :> Nil)
 
 debounce
-    :: (HiddenClockResetEnable dom conf, KnownNat n, Eq a, Undefined a)
+    :: (HiddenClockResetEnable dom, KnownNat n, Eq a, Undefined a)
     => SNat n -> a -> Signal dom a -> Signal dom a
 debounce n x0 = mealyState step (unsigned n 0, x0, x0)
   where
@@ -129,7 +129,8 @@ extremum xs
   | otherwise = Nothing
 
 regShiftIn
-    :: (HiddenClockResetEnable dom conf, KnownNat n, Undefined a)
+    :: (KnownNat n, Undefined a)
+    => (HiddenClockResetEnable dom)
     => Vec n a -> Signal dom (Maybe a) -> (Signal dom (Vec n a), Signal dom (Maybe a))
 regShiftIn = mealyB $ \xs x -> let out@(xs', _) = shiftIn x xs in (xs', out)
   where

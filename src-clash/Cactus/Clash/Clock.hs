@@ -16,11 +16,13 @@ type FromHz rate = 1_000_000_000_000 `Div` rate
 fromHz :: Integer -> Natural
 fromHz hz = fromIntegral $ 1_000_000_000_000 `div` hz
 
-type family ClockDivider conf (n :: Nat) where
-    ClockDivider ('DomainConfiguration _ ps _ _ _ _) n = n `Div` ps
+type family ClockPeriod conf where
+    ClockPeriod ('DomainConfiguration _ ps _ _ _ _) = ps
+
+type ClockDivider dom n = n `Div` ClockPeriod (KnownConf dom)
 
 divider
-    :: forall n proxy dom conf.
-       (KnownNat n, KnownNat (ClockDivider conf n), HiddenClockResetEnable dom conf)
+    :: forall n proxy dom.
+       (KnownNat n, KnownNat (ClockDivider dom n), HiddenClockResetEnable dom)
     => proxy n -> Signal dom Bool
-divider _ = countTo (pure $ maxBound @(Index (ClockDivider conf n)))
+divider _ = countTo (pure $ maxBound @(Index (ClockDivider dom n)))

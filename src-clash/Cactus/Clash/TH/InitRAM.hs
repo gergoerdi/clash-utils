@@ -31,7 +31,7 @@ blockRam_
 blockRam_ n w =
     [e|
      let ram :: forall addr n value. (Enum addr, BitPack value, KnownNat (BitSize value))
-             => forall dom conf. (HiddenClockResetEnable dom conf)
+             => forall dom. (HiddenClockResetEnable dom)
              => Signal dom addr
              -> Signal dom (Maybe (addr, value))
              -> Signal dom value
