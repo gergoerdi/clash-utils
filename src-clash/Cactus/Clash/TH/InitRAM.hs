@@ -8,9 +8,12 @@ import Data.List as L
 import System.FilePath
 import Control.Monad.IO.Class
 import Data.Maybe (fromMaybe)
+import System.Directory
 
 writeRAMImage :: Int -> Int -> FilePath -> IO ()
-writeRAMImage n width fn = writeFile fn $ unlines bvs
+writeRAMImage n width fn = do
+    createDirectoryIfMissing True (takeDirectory fn)
+    writeFile fn $ unlines bvs
   where
     bvs = L.replicate n $ L.replicate width '0'
 
