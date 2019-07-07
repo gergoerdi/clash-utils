@@ -3,7 +3,7 @@
 {-# LANGUAGE FlexibleInstances, FlexibleContexts, StandaloneDeriving #-}
 module Cactus.Clash.CPU
        ( CPU
-       , input, output, abort
+       , input, inputs, output, abort
        , getStart, getsStart
        , runCPU, runCPUDebug
        ) where
@@ -34,7 +34,10 @@ instance (HasField' field (HKD a f) (f b), Applicative f) => IsLabel field (b ->
     fromLabel x = Endo $ field @field .~ pure x
 
 input :: (Monoid (Partial o)) => CPU i s o i
-input = CPU . asks $ fst
+input = inputs id
+
+inputs :: (Monoid (Partial o)) => (i -> a) -> CPU i s o a
+inputs f = CPU . asks $ f . fst
 
 getStart :: (Monoid (Partial o)) => CPU i s o s
 getStart = getsStart id
