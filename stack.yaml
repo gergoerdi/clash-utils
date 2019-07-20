@@ -1,0 +1,12 @@
+resolver: lts-13.24
+
+extra-deps:
+  - git: git@github.com:clash-lang/clash-compiler
+    commit: 8ddd65254ade547501b76ae40304c2b7727763e5
+    subdirs:
+    - clash-prelude
+
+  - git: https://github.com/clash-lang/ghc-typelits-extra
+    commit: 145a1a524d9ee163887e7da2edc11cd2ff977ab8
+
+  - higgledy-0.3.0.0

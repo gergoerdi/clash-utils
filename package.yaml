@@ -1,0 +1,46 @@
+name:                clash-retrocomputer-utils
+version:             0.0.0.0
+synopsis:            Various CLaSH utility functions, aimed at building retrocomputers
+homepage:            https://github.com/gergoerdi/clash-utils
+license:             MIT
+maintainer:          Gergő Érdi <gergo@erdi.hu>
+copyright:           2019 Gergő Érdi
+category:            Hardware
+
+extra-source-files:
+  - README.md
+  - LICENSE
+
+source-dirs:
+  - src
+
+dependencies:
+  - base >= 4.7 && < 5
+  - template-haskell
+  - clash-prelude
+  - data-default
+  - deepseq
+  - mtl
+  - transformers
+  - directory
+  - filepath
+  - lens
+  - generic-lens >= 1.1 && < 1.2
+  - higgledy >= 0.3 && < 0.4
+  - barbies >= 1.1 && < 1.2
+  - ghc-typelits-knownnat
+  - ghc-typelits-natnormalise
+  - ghc-typelits-extra
+
+library:
+  exposed-modules:
+    - Cactus.Clash.Util
+    - Cactus.Clash.SevenSegment
+    - Cactus.Clash.PS2
+    - Cactus.Clash.SerialRX
+    - Cactus.Clash.SerialTX
+    - Cactus.Clash.VGA
+    - Cactus.Clash.Clock
+    - Cactus.Clash.CPU
+    - Cactus.Clash.FetchM
+    - Cactus.Clash.TH.InitRAM
