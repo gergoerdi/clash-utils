@@ -1,5 +1,6 @@
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards, TupleSections #-}
+{-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleContexts #-}
 module Cactus.Clash.SerialTX
     ( TXOut(..)
     , txDyn

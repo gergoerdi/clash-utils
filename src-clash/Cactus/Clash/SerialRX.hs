@@ -1,7 +1,7 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, TypeApplications #-}
 {-# LANGUAGE RecordWildCards, TupleSections #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass #-}
-{-# LANGUAGE NoStarIsType #-}
+{-# LANGUAGE NoStarIsType, TypeOperators, DataKinds, FlexibleContexts #-}
 module Cactus.Clash.SerialRX
     ( RXState(..)
     , rx

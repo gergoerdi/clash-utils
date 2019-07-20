@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables, TypeApplications #-}
 {-# LANGUAGE TemplateHaskell, QuasiQuotes #-}
 module Cactus.Clash.TH.InitRAM where
 

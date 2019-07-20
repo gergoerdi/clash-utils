@@ -1,5 +1,5 @@
-{-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables #-}
-{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE PartialTypeSignatures, ScopedTypeVariables, FlexibleContexts #-}
+{-# LANGUAGE NumericUnderscores, DataKinds, TypeApplications, TypeOperators, TypeFamilies #-}
 module Cactus.Clash.Clock
     ( FromHz
     , fromHz

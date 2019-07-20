@@ -1,6 +1,6 @@
 {-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE NumericUnderscores #-}
+{-# LANGUAGE NumericUnderscores, DataKinds, KindSignatures, GADTs #-}
 module Cactus.Clash.VGA where
 
 import Clash.Prelude

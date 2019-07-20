@@ -1,5 +1,6 @@
-{-# LANGUAGE RecordWildCards #-}
+{-# LANGUAGE RecordWildCards, DataKinds, TypeOperators, GADTs #-}
 {-# LANGUAGE StandaloneDeriving, DeriveFoldable, DeriveTraversable #-}
+{-# LANGUAGE TemplateHaskell #-}
 module Cactus.Clash.SevenSegment
     ( SevenSegment(..)
     , Nybble
@@ -10,6 +11,7 @@ module Cactus.Clash.SevenSegment
     , showSS
     ) where
 
+import Prelude ()
 import Clash.Prelude
 import Cactus.Clash.Util
 
@@ -31,12 +33,12 @@ deriving instance (KnownNat n, 1 <= n) => Foldable (SevenSegment n)
 deriving instance (KnownNat n, 1 <= n) => Traversable (SevenSegment n)
 
 driveSS
-    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    :: (HiddenClockResetEnable dom, KnownNat n)
     => Word32 -> Signal dom (Vec n Nybble) -> Signal dom (SevenSegment n Bool)
 driveSS = driveSS' $ \d -> (encodeHexSS d, False)
 
 driveSS'
-    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    :: (HiddenClockResetEnable dom, KnownNat n)
     => (a -> (Vec 7 Bool, Bool)) -> Word32 -> Signal dom (Vec n a) -> Signal dom (SevenSegment n Bool)
 driveSS' toSegments muxSpeed inputs = SevenSegment <$> mask <*> segments <*> dp
   where
@@ -44,7 +46,7 @@ driveSS' toSegments muxSpeed inputs = SevenSegment <$> mask <*> segments <*> dp
     (segments, dp) = unbundle $ toSegments <$> input
 
 dim
-    :: (HiddenClockResetEnable dom conf, KnownNat n)
+    :: (HiddenClockResetEnable dom, KnownNat n)
     => Word32 -> Signal dom (Vec n Bool) -> Signal dom (Vec n Bool)
 dim n xs = bundle $ (.&&.) <$> repeat (countTo $ pure n) <*> unbundle xs
 
