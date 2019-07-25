@@ -46,7 +46,7 @@ decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bi
         Idle -> do
             when (bit == low) $ put $ Bit 0 0
         Bit x i -> do
-            let x' = shiftInLeft bit x
+            let (x', _) = shiftInLeft bit x
             put $ maybe (Parity x') (Bit x') $ succIdx i
         Parity x -> do
             let checked = bit /= parity x

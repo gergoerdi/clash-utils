@@ -28,10 +28,7 @@ data TXState n
 
 data TXOut dom = TXOut{ txReady :: Signal dom Bool, txOut :: Signal dom Bit }
 
-rotateRightS' :: forall a d. (BitPack a, KnownNat (BitSize a)) => SNat d -> a -> a
-rotateRightS' d x = unpack . pack $ rotateRightS (unpack . pack $ x :: Vec (BitSize a) Bit) d
-
-tx0 :: (KnownNat n) => Maybe (Unsigned n) -> State (TXState n) (Bool, Bit)
+tx0 :: forall n. (KnownNat n, 1 <= n) => Maybe (Unsigned n) -> State (TXState n) (Bool, Bit)
 tx0 input = do
     s <- get
     case s of
@@ -42,12 +39,12 @@ tx0 input = do
             put $ TXBit x 0
             return (False, low)
         TXBit x i -> do
-            let x' = rotateRightS' d1 x
+            let (x', b) = shiftInLeft low x
             put $ maybe TXIdle (TXBit x') $ succIdx i
-            return (False, lsb . pack $ x)
+            return (False, b)
 
 txDyn
-    :: (KnownNat n, HiddenClockResetEnable dom)
+    :: (KnownNat n, 1 <= n, HiddenClockResetEnable dom)
     => Signal dom Bool
     -> Signal dom (Maybe (Unsigned n))
     -> TXOut dom
@@ -56,7 +53,7 @@ txDyn tick inp = TXOut{..}
     (txReady, txOut) = unbundle $ mealyStateSlow tick tx0 TXIdle inp
 
 tx
-    :: (KnownNat n, HiddenClockResetEnable dom)
+    :: (KnownNat n, 1 <= n, HiddenClockResetEnable dom)
     => (KnownNat rate, KnownNat (ClockDivider dom rate))
     => proxy rate
     -> Signal dom (Maybe (Unsigned n))

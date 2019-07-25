@@ -27,7 +27,6 @@ import Data.Proxy
 data RXState = RXState
     { buf1, buf2 :: Bit
     , cnt :: Integer
-    , byte :: Word8
     , state :: MicroState
     }
     deriving (Generic, NFData, Show, Undefined)
@@ -35,12 +34,12 @@ data RXState = RXState
 data MicroState
     = RXIdle
     | RXStart
-    | RXBit (Index 8)
-    | RXStop
+    | RXBit (Index 8) (Unsigned 8)
+    | RXStop (Unsigned 8)
     | RXCleanup
     deriving (Generic, NFData, Show, Undefined)
 
-rx0 :: Integer -> Bit -> State RXState (Maybe Word8)
+rx0 :: Integer -> Bit -> State RXState (Maybe (Unsigned 8))
 rx0 divider bit = do
     s@RXState{..} <- get
     modify $ \s -> s{ buf2 = buf1, buf1 = bit, cnt = cnt - 1 }
@@ -49,12 +48,12 @@ rx0 divider bit = do
         RXIdle -> do
             when (buf2 == low) $ goto RXStart
         RXStart -> when (cnt == divider `div` 2) $ do
-            goto $ if buf2 == low then RXBit 0 else RXIdle
-        RXBit i -> when (cnt == 0) $ do
-            modify $ \s -> s{ byte = shiftInLeft buf2 byte }
-            goto $ maybe RXStop RXBit $ succIdx i
-        RXStop -> when (cnt == 0) $ do
-            tell $ Last . Just $ byte
+            goto $ if buf2 == low then RXBit 0 0 else RXIdle
+        RXBit i x -> when (cnt == 0) $ do
+            let (x', _) = shiftInLeft buf2 x
+            goto $ maybe RXStop RXBit (succIdx i) x'
+        RXStop x -> when (cnt == 0) $ do
+            tell $ Last . Just $ x
             goto RXCleanup
         RXCleanup -> goto RXIdle
   where
@@ -65,13 +64,12 @@ rx
     => (HiddenClockResetEnable dom)
     => proxy rate
     -> Signal dom Bit
-    -> Signal dom (Maybe Word8)
+    -> Signal dom (Maybe (Unsigned 8))
 rx rate = mealyState (rx0 $ natVal (Proxy @(ClockDivider dom (2 * rate)))) s0
   where
     s0 = RXState
         { buf1 = 0
         , buf2 = 0
         , cnt = 0
-        , byte = 0
         , state = RXIdle
         }

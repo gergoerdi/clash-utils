@@ -100,8 +100,8 @@ predIdx x | x == minBound = Nothing
 unsigned :: (KnownNat n) => SNat n -> Unsigned n -> Unsigned n
 unsigned n = id
 
-shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> a
-shiftInLeft b bs = unpack . pack . fst $ shiftInAt0 (unpack . pack $ bs) (b :> Nil)
+shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> (a, Bit)
+shiftInLeft b bs = bitCoerce (b, bs)
 
 debounce
     :: (HiddenClockResetEnable dom, KnownNat n, Eq a, Undefined a)
