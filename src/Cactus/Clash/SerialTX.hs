@@ -65,7 +65,7 @@ tx rate = txDyn (divider rate)
 
 fifo
     :: forall a. (Undefined a)
-    => forall dom conf. (HiddenClockResetEnable dom)
+    => forall dom. (HiddenClockResetEnable dom)
     => Signal dom (Maybe a) -> Signal dom Bool -> (Signal dom (Maybe a), Signal dom Bool)
 fifo input consumed = unbundle $ mealyState step Nothing $ bundle (input, consumed)
   where
