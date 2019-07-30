@@ -1,4 +1,4 @@
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE ScopedTypeVariables, DataKinds, TypeOperators, GADTs #-}
 {-# LANGUAGE RecordWildCards, TupleSections #-}
 {-# LANGUAGE DeriveGeneric, DeriveAnyClass, FlexibleContexts #-}
 module Cactus.Clash.SerialTX

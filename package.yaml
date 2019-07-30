@@ -32,6 +32,12 @@ dependencies:
   - ghc-typelits-natnormalise
   - ghc-typelits-extra
 
+ghc-options:
+  -fexpose-all-unfoldings -fno-worker-wrapper
+  -fplugin GHC.TypeLits.KnownNat.Solver
+  -fplugin GHC.TypeLits.Normalise
+  -fplugin GHC.TypeLits.Extra.Solver
+
 library:
   exposed-modules:
     - Cactus.Clash.Util
