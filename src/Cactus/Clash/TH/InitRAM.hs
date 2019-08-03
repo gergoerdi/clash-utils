@@ -25,8 +25,8 @@ createRAMImage n width = do
     qPutQ $ succ i
     let fn = "null-" <> mod <> "-" <> show (i :: Int) <> "-" <> show n <> "x" <> show width <.> "hex"
     liftIO $ mapM_ (writeRAMImage n width)
-      [ "_build" </> fn
-      , "_build/verilog" </> mod </> mod </> fn
+      [ fn
+      , "clash-syn/verilog" </> mod </> mod </> fn
       ]
     litE $ stringL fn
 
