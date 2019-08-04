@@ -24,10 +24,7 @@ createRAMImage n width = do
     i <- fromMaybe 0 <$> qGetQ
     qPutQ $ succ i
     let fn = "null-" <> mod <> "-" <> show (i :: Int) <> "-" <> show n <> "x" <> show width <.> "hex"
-    liftIO $ mapM_ (writeRAMImage n width)
-      [ fn
-      , "clash-syn/verilog" </> mod </> mod </> fn
-      ]
+    liftIO $ writeRAMImage n width fn
     litE $ stringL fn
 
 blockRam_
