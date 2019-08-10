@@ -6,6 +6,7 @@ module Cactus.Clash.PS2
     , decodePS2
     , KeyEvent(..)
     , ScanCode(..)
+    , KeyCode(..)
     , parseScanCode
     ) where
 
@@ -58,7 +59,9 @@ decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bi
 data KeyEvent = KeyPress | KeyRelease
     deriving (Generic, NFData, Eq, Show, Undefined)
 
-data ScanCode = ScanCode KeyEvent (Unsigned 9)
+type KeyCode = Unsigned 9
+
+data ScanCode = ScanCode KeyEvent KeyCode
     deriving (Generic, NFData, Eq, Show, Undefined)
 
 data ScanState
