@@ -103,6 +103,7 @@ unsigned n = id
 shiftInLeft :: (BitPack a, KnownNat (BitSize a)) => Bit -> a -> (a, Bit)
 shiftInLeft b bs = bitCoerce (b, bs)
 
+{-# INLINE debounce #-}
 debounce
     :: (HiddenClockResetEnable dom, KnownNat n, Eq a, Undefined a)
     => SNat n -> a -> Signal dom a -> Signal dom a
@@ -110,13 +111,15 @@ debounce n x0 = mealyState step (unsigned n 0, x0, x0)
   where
     step this = do
         (counter, last, prev) <- get
-        let stable = counter == maxBound
-            changing = this /= prev
-            counter' = if changing then 0 else counter `boundedAdd` 1
-            last' = if counter' == maxBound then this else last
-
-        put (counter', last', this)
-        return last'
+        if this == prev
+          then do
+            if counter == maxBound
+              then put (counter, this, this)
+              else put (counter + 1, last, this)
+            return this
+          else do
+            put (0, last, this)
+            return last
 
 enable :: Bool -> a -> Maybe a
 enable False = const Nothing
