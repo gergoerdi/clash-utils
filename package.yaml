@@ -16,7 +16,6 @@ source-dirs:
 
 dependencies:
   - base >= 4.7 && < 5
-  - template-haskell
   - clash-prelude
   - data-default
   - deepseq
@@ -49,4 +48,3 @@ library:
     - Cactus.Clash.Clock
     - Cactus.Clash.CPU
     - Cactus.Clash.FetchM
-    - Cactus.Clash.TH.InitRAM
