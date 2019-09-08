@@ -21,7 +21,7 @@ data Buffer n dat = Buffer
     { bufferContents :: Vec n dat
     , bufferNext :: Index (1 + n)
     }
-    deriving (Show, Generic, Undefined)
+    deriving (Show, Generic, NFDataX)
 
 instance (KnownNat n, Default dat) => Default (Buffer n dat) where
     def = Buffer (pure def) 0

@@ -24,7 +24,7 @@ data TXState n
     = TXIdle
     | TXStart (Unsigned n)
     | TXBit (Unsigned n) (Index n)
-    deriving (Show, Eq, Generic, Undefined)
+    deriving (Show, Eq, Generic, NFDataX)
 
 data TXOut dom = TXOut{ txReady :: Signal dom Bool, txOut :: Signal dom Bit }
 
@@ -61,7 +61,7 @@ tx
 tx rate = txDyn (divider rate)
 
 fifo
-    :: forall a. (Undefined a)
+    :: forall a. (NFDataX a)
     => forall dom. (HiddenClockResetEnable dom)
     => Signal dom (Maybe a) -> Signal dom Bool -> (Signal dom (Maybe a), Signal dom Bool)
 fifo input consumed = unbundle $ mealyState step Nothing $ bundle (input, consumed)

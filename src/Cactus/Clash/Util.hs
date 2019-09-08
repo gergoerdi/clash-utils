@@ -28,12 +28,12 @@ import Data.Word
 import Data.Maybe (fromMaybe, isJust)
 import qualified Data.List as L
 
-mealyState :: (HiddenClockResetEnable dom, Undefined s)
+mealyState :: (HiddenClockResetEnable dom, NFDataX s)
            => (i -> State s o) -> s -> (Signal dom i -> Signal dom o)
 mealyState = mealyStateSlow (pure True)
 
 mealyStateSlow
-    :: (HiddenClockResetEnable dom, Undefined s)
+    :: (HiddenClockResetEnable dom, NFDataX s)
     => Signal dom Bool
     -> (i -> State s o)
     -> s
@@ -51,7 +51,7 @@ activeHigh = fmap boolToBit
 
 countWhen
     :: forall a dom.
-      (Undefined a, Num a, HiddenClockResetEnable dom)
+      (NFDataX a, Num a, HiddenClockResetEnable dom)
     => Signal dom Bool -> Signal dom a
 countWhen s = fix $ regEn 0 s . (1 +)
 
@@ -64,7 +64,7 @@ diff = mealy step False
     step True new = (isJust new, Nothing)
 
 countTo
-    :: (Undefined a, Eq a, Num a, HiddenClockResetEnable dom)
+    :: (NFDataX a, Eq a, Num a, HiddenClockResetEnable dom)
     => Signal dom a -> Signal dom Bool
 countTo n = cnt .==. n
   where
@@ -105,7 +105,7 @@ shiftInLeft b bs = bitCoerce (b, bs)
 
 {-# INLINE debounce #-}
 debounce
-    :: (HiddenClockResetEnable dom, KnownNat n, Eq a, Undefined a)
+    :: (HiddenClockResetEnable dom, KnownNat n, Eq a, NFDataX a)
     => SNat n -> a -> Signal dom a -> Signal dom a
 debounce n x0 = mealyState step (unsigned n 0, x0, x0)
   where
@@ -132,7 +132,7 @@ extremum xs
   | otherwise = Nothing
 
 regShiftIn
-    :: (KnownNat n, Undefined a)
+    :: (KnownNat n, NFDataX a)
     => (HiddenClockResetEnable dom)
     => Vec n a -> Signal dom (Maybe a) -> (Signal dom (Vec n a), Signal dom (Maybe a))
 regShiftIn = mealyB $ \xs x -> let out@(xs', _) = shiftIn x xs in (xs', out)

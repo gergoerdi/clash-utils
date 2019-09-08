@@ -36,7 +36,7 @@ data PS2State
     | Bit (Unsigned 8) (Index 8)
     | Parity (Unsigned 8)
     | Stop (Maybe (Unsigned 8))
-    deriving (Show, Eq, Generic, Undefined)
+    deriving (Show, Eq, Generic, NFDataX)
 
 decodePS2
     :: (HiddenClockResetEnable dom)
@@ -57,18 +57,18 @@ decodePS2 = flip mealyState Idle $ \bit -> fmap getLast . execWriterT . forM_ bi
             put Idle
 
 data KeyEvent = KeyPress | KeyRelease
-    deriving (Generic, NFData, Eq, Show, Undefined)
+    deriving (Generic, NFData, Eq, Show, NFDataX)
 
 type KeyCode = Unsigned 9
 
 data ScanCode = ScanCode KeyEvent KeyCode
-    deriving (Generic, NFData, Eq, Show, Undefined)
+    deriving (Generic, NFData, Eq, Show, NFDataX)
 
 data ScanState
     = Init
     | Extended
     | Code KeyEvent Bit
-    deriving (Show, Generic, Undefined)
+    deriving (Show, Generic, NFDataX)
 
 -- TODO: rewrite this for clarity.
 -- All it does is it parses 0xE0 0xXX into an extended code, and

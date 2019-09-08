@@ -29,7 +29,7 @@ data RXState = RXState
     , cnt :: Integer
     , state :: MicroState
     }
-    deriving (Generic, NFData, Show, Undefined)
+    deriving (Generic, NFData, Show, NFDataX)
 
 data MicroState
     = RXIdle
@@ -37,7 +37,7 @@ data MicroState
     | RXBit (Index 8) (Unsigned 8)
     | RXStop (Unsigned 8)
     | RXCleanup
-    deriving (Generic, NFData, Show, Undefined)
+    deriving (Generic, NFData, Show, NFDataX)
 
 rx0 :: Integer -> Bit -> State RXState (Maybe (Unsigned 8))
 rx0 divider bit = do
