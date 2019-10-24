@@ -16,7 +16,7 @@ import Data.Generic.HKD
 import Control.Monad.Identity
 import Control.Monad.RWS
 import Control.Monad.Trans.Class
-import Control.Monad.Trans.Except
+import Control.Monad.Trans.Maybe
 import Data.Barbie
 import Control.Lens (Lens, (&), (.~))
 import GHC.OverloadedLabels
@@ -24,7 +24,7 @@ import Data.Generics.Product.Fields (HasField')
 
 type Partial o = HKD o Last
 
-newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS (i, s) (Partial o) s) a }
+newtype CPU i s o a = CPU{ unCPU :: MaybeT (RWS (i, s) (Partial o) s) a }
     deriving newtype (Functor)
 deriving newtype instance (Monoid (Partial o)) => Applicative (CPU i s o)
 deriving newtype instance (Monoid (Partial o)) => Monad (CPU i s o)
@@ -55,14 +55,14 @@ output :: (Monoid (Partial o)) => Endo (Partial o) -> CPU i s o ()
 output f = output_ $ appEndo f mempty
 
 abort :: (Monoid (Partial o)) => CPU i s o a
-abort = CPU $ throwE ()
+abort = CPU mzero
 
 runCPU
   :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
   => (s -> o) -> CPU i s o () -> (i -> State s o)
 runCPU mkDef cpu inp = do
     s <- get
-    let (s', writes) = execRWS (runExceptT $ unCPU cpu) (inp, s) s
+    let (s', writes) = execRWS (runMaybeT $ unCPU cpu) (inp, s) s
     put s'
     def <- gets mkDef
     return $ update def writes
