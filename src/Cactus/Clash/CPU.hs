@@ -6,7 +6,8 @@ module Cactus.Clash.CPU
        ( CPU
        , input, inputs, output, abort
        , getStart, getsStart
-       , runCPU, runCPUDebug
+       , runCPU
+       , runCPUDebug
        ) where
 
 import Clash.Prelude hiding (lift)
@@ -22,58 +23,71 @@ import Control.Lens (Lens, (&), (.~))
 import GHC.OverloadedLabels
 import Data.Generics.Product.Fields (HasField')
 
-type Partial o = HKD o Last
+newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS (i, s) () (s, o)) a }
+    deriving newtype (Functor, Applicative, Monad)
 
-newtype CPU i s o a = CPU{ unCPU :: ExceptT () (RWS (i, s) (Partial o) s) a }
-    deriving newtype (Functor)
-deriving newtype instance (Monoid (Partial o)) => Applicative (CPU i s o)
-deriving newtype instance (Monoid (Partial o)) => Monad (CPU i s o)
-deriving newtype instance (Monoid (Partial o)) => MonadState s (CPU i s o)
+instance MonadState s (CPU i s o) where
+    get = CPU $ gets fst
+    put s' = CPU $ modify $ \(_, o) -> (s', o)
 
-instance (HasField' field (HKD a f) (f b), Applicative f) => IsLabel field (b -> Endo (HKD a f)) where
+instance (Construct Identity a, HasField' field (HKD a Identity) (Identity b)) => IsLabel field (b -> Endo a) where
     {-# INLINE fromLabel #-}
-    fromLabel x = Endo $ field @field .~ pure x
+    fromLabel x = Endo $ runIdentity . construct . (field @field .~ pure x) . deconstruct @Identity
 
-input :: (Monoid (Partial o)) => CPU i s o i
+input :: CPU i s o i
 input = inputs id
 
-inputs :: (Monoid (Partial o)) => (i -> a) -> CPU i s o a
+inputs :: (i -> a) -> CPU i s o a
 inputs f = CPU . asks $ f . fst
 
-getStart :: (Monoid (Partial o)) => CPU i s o s
+getStart :: CPU i s o s
 getStart = getsStart id
 
-getsStart :: (Monoid (Partial o)) => (s -> a) -> CPU i s o a
+getsStart :: (s -> a) -> CPU i s o a
 getsStart f = CPU . asks $ f . snd
 
-{-# INLINE output_ #-}
-output_ :: (Monoid (Partial o)) => Partial o -> CPU i s o ()
-output_ = CPU . tell
+-- {-# INLINE output_ #-}
+-- output_ :: Partial o -> CPU i s o ()
+-- output_ = undefined -- CPU . tell
 
 {-# INLINE output #-}
-output :: (Monoid (Partial o)) => Endo (Partial o) -> CPU i s o ()
-output f = output_ $ appEndo f mempty
+output :: Endo o -> CPU i s o ()
+output f = CPU $ modify $ \(s, o) -> (s, appEndo f o)
 
-abort :: (Monoid (Partial o)) => CPU i s o a
+abort :: CPU i s o a
 abort = CPU $ throwE ()
 
-runCPU
-  :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
-  => (s -> o) -> CPU i s o () -> (i -> State s o)
+runCPU :: (s -> o) -> CPU i s o () -> (i -> State s o)
 runCPU mkDef cpu inp = do
     s <- get
-    let (s', writes) = execRWS (runExceptT $ unCPU cpu) (inp, s) s
+    let o0 = mkDef s
+    let ((s', o), ()) = execRWS (runExceptT $ unCPU cpu) (inp, s) (s, o0)
     put s'
-    def <- gets mkDef
-    return $ update def writes
+    return o
 
-runCPUDebug
-  :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
-  => (s -> o) -> CPU i s o () -> (i -> State s (s, o))
+-- runCPU
+--   :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
+--   => (s -> o) -> CPU i s o () -> (i -> State s o)
+-- runCPU mkDef cpu inp = do
+--     s <- get
+--     let (s', writes) = execRWS (runExceptT $ unCPU cpu) (inp, s) s
+--     put s'
+--     def <- gets mkDef
+--     return $ update def writes
+
+runCPUDebug :: (s -> o) -> CPU i s o () -> (i -> State s (s, o))
 runCPUDebug mkDef cpu inp = do
     s0 <- get
     out <- runCPU mkDef cpu inp
     return (s0, out)
 
-update :: (Generic a, Construct Identity a, FunctorB (HKD a), ProductBC (HKD a)) => a -> HKD a Last -> a
-update initial edits = runIdentity . construct $ bzipWith (\i -> maybe i Identity . getLast) (deconstruct initial) edits
+-- runCPUDebug
+--   :: (Generic o, Construct Identity o, FunctorB (HKD o), ProductBC (HKD o))
+--   => (s -> o) -> CPU i s o () -> (i -> State s (s, o))
+-- runCPUDebug mkDef cpu inp = do
+--     s0 <- get
+--     out <- runCPU mkDef cpu inp
+--     return (s0, out)
+
+-- update :: (Generic a, Construct Identity a, FunctorB (HKD a), ProductBC (HKD a)) => a -> HKD a Last -> a
+-- update initial edits = runIdentity . construct $ bzipWith (\i -> maybe i Identity . getLast) (deconstruct initial) edits
